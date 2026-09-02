@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سیستم کامل برنامه‌ریزی</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(145deg, #f0f4ff 0%, #e8edf5 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #1a1a2e;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        
+        .hero {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 24px;
+            padding: 30px 28px;
+            color: white;
+            margin-bottom: 28px;
+            box-shadow: 0 12px 30px rgba(102, 126, 234, 0.35);
+        }
+        .hero h1 { font-size: 28px; font-weight: 800; margin-bottom: 4px; }
+        .hero .subtitle { font-size: 15px; opacity: 0.9; }
+        .hero .stats-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 6px 18px;
+            border-radius: 30px;
+            font-size: 14px;
+            margin-top: 12px;
+            font-weight: 600;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .stat-card {
+            background: white;
+            border-radius: 18px;
+            padding: 20px 16px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.06);
+        }
+        .stat-card .number { font-size: 32px; font-weight: 800; }
+        .stat-card .label { font-size: 13px; color: #6b7280; margin-top: 4px; }
+        .stat-card .sub-label { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+        .stat-card.purple .number { color: #7C3AED; }
+        .stat-card.green .number { color: #10B981; }
+        .stat-card.orange .number { color: #F59E0B; }
+        
+        .section {
+            background: white;
+            border-radius: 20px;
+            padding: 22px 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .section-header h2 { font-size: 19px; font-weight: 700; }
+        .section-header .badge-count {
+            background: #f3f4f6;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            color: #6b7280;
+        }
+        
+        .task-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f3f4f6;
+            gap: 12px;
+        }
+        .task-item:last-child { border-bottom: none; }
+        .task-check {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid #d1d5db;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+            transition: 0.3s;
+        }
+        .task-check.done {
+            background: #10B981;
+            border-color: #10B981;
+            color: white;
+        }
+        .task-title { flex: 1; font-size: 15px; }
+        .task-title.done { text-decoration: line-through; color: #9ca3af; }
+        .task-priority {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .task-category {
+            font-size: 12px;
+color: #9ca3af;
+            background: #f3f4f6;
+            padding: 2px 12px;
+            border-radius: 12px;
+        }
+        .task-delete {
+            color: #ef4444;
+            text-decoration: none;
+            font-size: 16px;
+            opacity: 0.4;
+            transition: 0.3s;
+        }
+        .task-delete:hover { opacity: 1; }
+        
+        .habits-container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 8px 0;
+        }
+        .habit-circle-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .habit-circle {
+            width: 72px;
+            height: 72px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            border: 4px solid #e5e7eb;
+            transition: all 0.3s;
+            background: white;
+        }
+        .habit-circle.done {
+            border-color: #10B981;
+            background: #d1fae5;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+        .habit-circle:hover { transform: scale(1.08); }
+        .habit-name { font-size: 13px; color: #4b5563; font-weight: 500; }
+        
+        .form-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+        .form-row input, .form-row select {
+            padding: 10px 14px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            flex: 1;
+            min-width: 100px;
+            font-size: 14px;
+            background: #fafafa;
+            transition: 0.3s;
+        }
+        .form-row input:focus, .form-row select:focus {
+            outline: none;
+            border-color: #7C3AED;
+        }
+        .btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        .empty-state {
+            text-align: center;
+            color: #9ca3af;
+            padding: 20px 0;
+        }
+        
+        .nav-tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 24px;
+            background: white;
+            border-radius: 16px;
+            padding: 6px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        .nav-tabs a {
+            flex: 1;
+            text-align: center;
+            padding: 10px 12px;
+            border-radius: 12px;
+            text-decoration: none;
+            color: #6b7280;
+            font-weight: 600;
+            font-size: 14px;
+            transition: 0.3s;
+        }
+        .nav-tabs a.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        @media (max-width: 600px) {
+            .stats-grid { grid-template-columns: 1fr 1fr; }
+            .stats-grid .stat-card:last-child { grid-column: 1 / -1; }
+            .hero h1 { font-size: 22px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="hero">
+            <h1>📋 سیستم کامل برنامه‌ریزی</h1>
+            <div class="subtitle">زندگی منظم، هدفمند و پر بازده</div>
+            <div class="stats-badge">🔥 بیش از {{ users }} نفر تجربه کرده‌اند</div>
+        </div>
+<div class="nav-tabs">
+            <a href="/" class="active">🏠 خانه</a>
+            <a href="/planner">📅 پلنر روزانه</a>
+            <a href="/finance">💰 مدیریت مالی</a>
+            <a href="/habits">🔥 عادت‌ها</a>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card purple">
+                <div class="number">{{ tasks_count }}</div>
+                <div class="label">وظایف امروز</div>
+                <div class="sub-label">{{ completion }}% انجام شده</div>
+            </div>
+            <div class="stat-card green">
+                <div class="number">{{ "{:,.0f}".format(today_expense) }}</div>
+                <div class="label">هزینه امروز</div>
+                <div class="sub-label">تومان</div>
+            </div>
+            <div class="stat-card orange">
+                <div class="number">{{ done_habits }}/{{ total_habits }}</div>
+                <div class="label">عادت‌های امروز</div>
+                <div class="sub-label">انجام شده</div>
+            </div>
+        </div>
+        
+        <div class="section">
+            <div class="section-header">
+                <h2>📋 برنامه امروز</h2>
+                <span class="badge-count">{{ tasks_count }} وظیفه</span>
+            </div>
+            {% if tasks %}
+                {% for task in tasks %}
+                <div class="task-item">
+                    <a href="/toggle_task/{{ task.id }}" class="task-check {% if task.done %}done{% endif %}">
+                        {% if task.done %}✓{% endif %}
+                    </a>
+                    <span class="task-priority" style="background: {% if task.priority <= 2 %}#ef4444{% elif task.priority <= 3 %}#F59E0B{% else %}#7C3AED{% endif %};"></span>
+                    <span class="task-title {% if task.done %}done{% endif %}">{{ task.title }}</span>
+                    <span class="task-category">{{ task.category }}</span>
+                    <a href="/delete_task/{{ task.id }}" class="task-delete">✕</a>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">✨ امروز هیچ وظیفه‌ای ثبت نشده</div>
+            {% endif %}
+            <form action="/add_task" method="POST" class="form-row">
+                <input type="text" name="title" placeholder="وظیفه جدید..." required>
+                <input type="date" name="date" value="{{ today }}">
+                <select name="priority">
+                    <option value="1">🔴 مهم</option>
+                    <option value="3" selected>🟡 معمولی</option>
+                    <option value="5">🟢 کم‌اهمیت</option>
+                </select>
+                <select name="category">
+                    <option value="شخصی">👤 شخصی</option>
+                    <option value="کار">💼 کار</option>
+                    <option value="سلامتی">💪 سلامتی</option>
+                </select>
+                <button type="submit" class="btn">➕ افزودن</button>
+            </form>
+        </div>
+        
+        <div class="section">
+            <div class="section-header">
+                <h2>🔥 عادت‌های امروز</h2>
+                <span class="badge-count">{{ done_habits }}/{{ total_habits }}</span>
+            </div>
+            <div class="habits-container">
+                {% if habits %}
+                    {% for habit in habits %}
+                    <a href="/toggle_habit/{{ habit.id }}" class="habit-circle-item">
+                        <div class="habit-circle {% if habit.done %}done{% endif %}" 
+                             style="border-color: {{ habit.color if not habit.done else '#10B981' }};">
+                            {{ habit.emoji }}
+                        </div>
+                        <span class="habit-name">{{ habit.name }}</span>
+                    </a>
+                    {% endfor %}
+{% else %}
+                    <div class="empty-state">🌟 هنوز عادتی ثبت نشده</div>
+                {% endif %}
+            </div>
+            <form action="/add_habit" method="POST" class="form-row">
+                <input type="text" name="name" placeholder="نام عادت..." required>
+                <input type="text" name="emoji" placeholder="🚀" style="max-width:70px;">
+                <input type="color" name="color" value="#7C3AED" style="max-width:60px; padding:4px; height:44px;">
+                <select name="frequency" style="max-width:120px;">
+                    <option value="daily">روزانه</option>
+                    <option value="weekly">هفتگی</option>
+                </select>
+                <button type="submit" class="btn">➕ افزودن عادت</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مدیریت عادت‌ها</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(145deg, #f0f4ff 0%, #e8edf5 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 24px;
+            padding: 28px;
+            color: white;
+            margin-bottom: 24px;
+        }
+        .header h1 { font-size: 26px; }
+        .header .sub { opacity: 0.9; }
+        
+        .nav-tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 24px;
+            background: white;
+            border-radius: 16px;
+            padding: 6px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        .nav-tabs a {
+            flex: 1;
+            text-align: center;
+            padding: 10px 12px;
+            border-radius: 12px;
+            text-decoration: none;
+            color: #6b7280;
+            font-weight: 600;
+            font-size: 14px;
+            transition: 0.3s;
+        }
+        .nav-tabs a.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 20px;
+            padding: 22px 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        .section h2 { font-size: 19px; margin-bottom: 16px; }
+        
+        .habit-card {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 0;
+            border-bottom: 1px solid #f3f4f6;
+        }
+        .habit-card:last-child { border-bottom: none; }
+        .habit-info { display: flex; align-items: center; gap: 14px; }
+        .habit-emoji { font-size: 32px; }
+        .habit-name { font-weight: 600; font-size: 17px; }
+        .habit-stats { font-size: 13px; color: #6b7280; }
+        .habit-actions { display: flex; gap: 8px; }
+        .btn-sm {
+            padding: 6px 14px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            text-decoration: none;
+        }
+        .btn-done {
+            background: #10B981;
+            color: white;
+        }
+        .btn-done:hover { background: #059669; }
+        .btn-undone {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-size: 13px;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+        .form-row input, .form-row select {
+            padding: 10px 14px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            flex: 1;
+            min-width: 100px;
+            font-size: 14px;
+            background: #fafafa;
+        }
+        .form-row input:focus, .form-row select:focus {
+            outline: none;
+            border-color: #7C3AED;
+        }
+        .btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 10px 24px;
+border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .empty-state { text-align: center; color: #9ca3af; padding: 20px 0; }
+        
+        @media (max-width: 600px) {
+            .habit-card { flex-direction: column; align-items: stretch; gap: 8px; }
+            .habit-actions { justify-content: flex-start; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔥 هینت ترکر</h1>
+            <div class="sub">عادت‌های خوب را بساز، پایدار نگه دار</div>
+        </div>
+        
+        <div class="nav-tabs">
+            <a href="/">🏠 خانه</a>
+            <a href="/planner">📅 پلنر</a>
+            <a href="/finance">💰 مالی</a>
+            <a href="/habits" class="active">🔥 عادت‌ها</a>
+        </div>
+        
+        <div class="section">
+            <h2>📊 لیست عادت‌ها</h2>
+            {% if habits %}
+                {% for habit in habits %}
+                <div class="habit-card">
+                    <div class="habit-info">
+                        <span class="habit-emoji">{{ habit.emoji }}</span>
+                        <div>
+                            <div class="habit-name">{{ habit.name }}</div>
+                            <div class="habit-stats">
+                                {% if habit.today_done %}
+                                <span style="color:#10B981;">✅ امروز انجام شد</span>
+                                {% else %}
+                                <span style="color:#9ca3af;">⬜ امروز ثبت نشده</span>
+                                {% endif %}
+                                • {{ habit.total_days }} روز • {{ habit.last_7 }} روز اخیر
+                            </div>
+                        </div>
+                    </div>
+                    <div class="habit-actions">
+                        <a href="/toggle_habit/{{ habit.id }}" class="btn-sm {% if habit.today_done %}btn-undone{% else %}btn-done{% endif %}">
+                            {% if habit.today_done %}↩️ لغو{% else %}✅ ثبت امروز{% endif %}
+                        </a>
+                        <a href="/delete_habit/{{ habit.id }}" class="btn-danger">🗑️</a>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">🌟 هنوز عادتی ثبت نشده</div>
+            {% endif %}
+            
+            <form action="/add_habit" method="POST" class="form-row">
+                <input type="text" name="name" placeholder="نام عادت..." required>
+                <input type="text" name="emoji" placeholder="🚀" style="max-width:70px;">
+                <input type="color" name="color" value="#7C3AED" style="max-width:60px; padding:4px; height:44px;">
+                <select name="frequency" style="max-width:120px;">
+                    <option value="daily">روزانه</option>
+                    <option value="weekly">هفتگی</option>
+                </select>
+                <button type="submit" class="btn">➕ افزودن عادت</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

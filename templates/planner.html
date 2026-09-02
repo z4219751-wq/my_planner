@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>پلنر روزانه</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(145deg, #f0f4ff 0%, #e8edf5 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 24px;
+            padding: 28px;
+            color: white;
+            margin-bottom: 24px;
+        }
+        .header h1 { font-size: 26px; }
+        .header .sub { opacity: 0.9; }
+        
+        .nav-tabs {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 24px;
+            background: white;
+            border-radius: 16px;
+            padding: 6px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        .nav-tabs a {
+            flex: 1;
+            text-align: center;
+            padding: 10px 12px;
+            border-radius: 12px;
+            text-decoration: none;
+            color: #6b7280;
+            font-weight: 600;
+            font-size: 14px;
+            transition: 0.3s;
+        }
+        .nav-tabs a.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .section {
+            background: white;
+            border-radius: 20px;
+            padding: 22px 24px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        .section h2 { font-size: 19px; margin-bottom: 16px; }
+        
+        .task-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #f3f4f6;
+            gap: 12px;
+        }
+        .task-item:last-child { border-bottom: none; }
+        .task-check {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid #d1d5db;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            text-decoration: none;
+            font-size: 14px;
+            transition: 0.3s;
+        }
+        .task-check.done { background: #10B981; border-color: #10B981; color: white; }
+        .task-title { flex: 1; font-size: 15px; }
+        .task-title.done { text-decoration: line-through; color: #9ca3af; }
+        .task-priority {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .task-category {
+            font-size: 12px;
+            color: #9ca3af;
+            background: #f3f4f6;
+            padding: 2px 12px;
+            border-radius: 12px;
+        }
+        .task-delete {
+            color: #ef4444;
+            text-decoration: none;
+            font-size: 16px;
+            opacity: 0.4;
+            transition: 0.3s;
+        }
+        .task-delete:hover { opacity: 1; }
+        
+        .form-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 14px;
+        }
+        .form-row input, .form-row select {
+            padding: 10px 14px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            flex: 1;
+            min-width: 100px;
+            font-size: 14px;
+            background: #fafafa;
+        }
+        .form-row input:focus, .form-row select:focus {
+            outline: none;
+            border-color: #7C3AED;
+        }
+        .btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .empty-state { text-align: center; color: #9ca3af; padding: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📅 پلنر روزانه</h1>
+            <div class="sub">هر روزت را برنامه‌ریزی کن، بهتر زندگی کن</div>
+        </div>
+        <div class="nav-tabs">
+            <a href="/">🏠 خانه</a>
+            <a href="/planner" class="active">📅 پلنر</a>
+            <a href="/finance">💰 مالی</a>
+            <a href="/habits">🔥 عادت‌ها</a>
+        </div>
+        <div class="section">
+            <h2>📋 وظایف امروز - {{ today }}</h2>
+            {% if tasks %}
+                {% for task in tasks %}
+                <div class="task-item">
+                    <a href="/toggle_task/{{ task.id }}" class="task-check {% if task.done %}done{% endif %}">
+                        {% if task.done %}✓{% endif %}
+                    </a>
+                    <span class="task-priority" style="background: {% if task.priority <= 2 %}#ef4444{% elif task.priority <= 3 %}#F59E0B{% else %}#7C3AED{% endif %};"></span>
+                    <span class="task-title {% if task.done %}done{% endif %}">{{ task.title }}</span>
+                    <span class="task-category">{{ task.category }}</span>
+                    <a href="/delete_task/{{ task.id }}" class="task-delete">✕</a>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">✨ امروز هیچ وظیفه‌ای ثبت نشده</div>
+            {% endif %}
+            <form action="/add_task" method="POST" class="form-row">
+                <input type="text" name="title" placeholder="وظیفه جدید..." required>
+                <input type="date" name="date" value="{{ today }}">
+                <select name="priority">
+                    <option value="1">🔴 مهم</option>
+                    <option value="3" selected>🟡 معمولی</option>
+                    <option value="5">🟢 کم‌اهمیت</option>
+                </select>
+                <select name="category">
+                    <option value="شخصی">👤 شخصی</option>
+                    <option value="کار">💼 کار</option>
+                    <option value="سلامتی">💪 سلامتی</option>
+                </select>
+                <button type="submit" class="btn">➕ افزودن</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>
