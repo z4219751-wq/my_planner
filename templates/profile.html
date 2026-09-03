@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>پروفایل | My Planner</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(145deg, #f0f7ff 0%, #e3edfa 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #1a2a3a;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+
+        .header {
+            background: linear-gradient(135deg, #4A90D9 0%, #5BA3E6 100%);
+            border-radius: 24px;
+            padding: 28px;
+            color: white;
+            margin-bottom: 24px;
+            box-shadow: 0 12px 30px rgba(74, 144, 217, 0.35);
+        }
+        .header h1 { font-size: 26px; }
+        .header .sub { opacity: 0.9; font-size: 15px; }
+
+        .nav-tabs {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+            background: white;
+            border-radius: 16px;
+            padding: 6px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        .nav-tabs a {
+            flex: 1;
+            min-width: 70px;
+            text-align: center;
+            padding: 10px 12px;
+            border-radius: 12px;
+            text-decoration: none;
+            color: #4a6a85;
+            font-weight: 600;
+            font-size: 13px;
+            transition: 0.3s;
+        }
+        .nav-tabs a:hover { background: #e8f0fe; }
+        .nav-tabs a.active {
+            background: linear-gradient(135deg, #4A90D9, #5BA3E6);
+            color: white;
+            box-shadow: 0 4px 15px rgba(74, 144, 217, 0.3);
+        }
+
+        .profile-card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            text-align: center;
+        }
+        .profile-card .avatar {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4A90D9, #5BA3E6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            color: white;
+            margin: 0 auto 16px;
+        }
+        .profile-card .name { font-size: 24px; font-weight: 700; }
+        .profile-card .username { color: #6b7f94; font-size: 16px; margin-top: 4px; }
+        .profile-card .email { color: #4a6a85; font-size: 14px; margin-top: 8px; }
+        .profile-card .subscription {
+            display: inline-block;
+            margin-top: 12px;
+            padding: 6px 20px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .subscription-premium { background: #d5f5e3; color: #27AE60; }
+        .subscription-free { background: #fde8e8; color: #e74c3c; }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin-top: 20px;
+            text-align: right;
+        }
+        .info-item {
+            background: #f8faff;
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid #eef3f8;
+        }
+        .info-item .label { color: #6b7f94; font-size: 12px; }
+        .info-item .value { font-size: 16px; font-weight: 600; margin-top: 4px; }
+
+        @media (max-width: 600px) {
+            .info-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>👤 پروفایل</h1>
+            <div class="sub">اطلاعات شخصی خود را مدیریت کنید</div>
+        </div>
+
+        <div class="nav-tabs">
+            <a href="/">🏠 خانه</a>
+            <a href="/planner">📅 پلنر</a>
+            <a href="/finance">💰 مالی</a>
+            <a href="/habits">🔥 عادت‌ها</a>
+            <a href="/shopping_list">🛒 خرید</a>
+            <a href="/profile" class="active">👤 پروفایل</a>
+        </div>
+
+        <div class="profile-card">
+            <div class="avatar">👤</div>
+            <div class="name">{{ user.full_name or user.username }}</div>
+            <div class="username">@{{ user.username }}</div>
+            <div class="email">{{ user.email }}</div>
+            <div class="subscription {% if current_subscription != 'free' %}subscription-premium{% else %}subscription-free{% endif %}">
+                {% if current_subscription != 'free' %}
+                    ⭐ اشتراک {{ current_subscription }}
+                {% else %}
+                    🔓 نسخه رایگان
+                {% endif %}
+            </div>
+
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="label">📅 تاریخ عضویت</div>
+                    <div class="value">{{ user.created_at[:10] if user.created_at else '-' }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">📆 پایان اشتراک</div>
+                    <div class="value">{{ user.subscription_end[:10] if user.subscription_end else '-' }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">📊 تعداد وظایف</div>
+                    <div class="value">0</div>
+                </div>
+                <div class="info-item">
+                    <div class="label">🔥 تعداد عادت‌ها</div>
+                    <div class="value">0</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

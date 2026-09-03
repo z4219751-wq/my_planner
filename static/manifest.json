@@ -1,0 +1,28 @@
+{
+    "name": "My Planner",
+    "short_name": "Planner",
+    "description": "برنامه‌ریزی روزانه، مدیریت مالی، عادت‌ها و آموزش زبان",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#4A90D9",
+    "theme_color": "#4A90D9",
+    "orientation": "portrait",
+    "id": "my-planner",
+    "scope": "/",
+    "dir": "rtl",
+    "lang": "fa",
+    "icons": [
+        {
+            "src": "/static/icons/android-icon-192x192.png",
+            "sizes": "192x192",
+            "type": "image/png",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/static/icons/ms-icon-310x310.png",
+            "sizes": "512x512",
+            "type": "image/png",
+            "purpose": "any maskable"
+        }
+    ]
+}

@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مدیتیشن | My Planner</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(145deg, #f0f7ff 0%, #e3edfa 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #1a2a3a;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+
+        .header {
+            background: linear-gradient(135deg, #4A90D9 0%, #5BA3E6 100%);
+            border-radius: 24px;
+            padding: 28px;
+            color: white;
+            margin-bottom: 24px;
+            box-shadow: 0 12px 30px rgba(74, 144, 217, 0.35);
+        }
+        .header h1 { font-size: 26px; }
+        .header .sub { opacity: 0.9; font-size: 15px; }
+
+        .nav-tabs {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+            background: white;
+            border-radius: 16px;
+            padding: 6px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        .nav-tabs a {
+            flex: 1;
+            min-width: 70px;
+            text-align: center;
+            padding: 10px 12px;
+            border-radius: 12px;
+            text-decoration: none;
+            color: #4a6a85;
+            font-weight: 600;
+            font-size: 13px;
+            transition: 0.3s;
+        }
+        .nav-tabs a:hover { background: #e8f0fe; }
+        .nav-tabs a.active {
+            background: linear-gradient(135deg, #4A90D9, #5BA3E6);
+            color: white;
+            box-shadow: 0 4px 15px rgba(74, 144, 217, 0.3);
+        }
+
+        .meditation-card {
+            background: white;
+            border-radius: 20px;
+            padding: 24px;
+            margin-bottom: 16px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        .meditation-card .title { font-size: 20px; font-weight: 700; }
+        .meditation-card .desc { color: #6b7f94; margin: 8px 0 12px; }
+        .meditation-card .btn {
+            background: linear-gradient(135deg, #4A90D9, #5BA3E6);
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+        .meditation-card .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(74, 144, 217, 0.4); }
+
+        .timer-section {
+            text-align: center;
+            padding: 30px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        .timer-section .timer {
+            font-size: 60px;
+            font-weight: 800;
+            color: #4A90D9;
+            margin: 16px 0;
+        }
+        .timer-section .controls { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🧘 مدیتیشن</h1>
+            <div class="sub">آرامش ذهن، تمرکز بیشتر</div>
+        </div>
+
+        <div class="nav-tabs">
+            <a href="/">🏠 خانه</a>
+            <a href="/planner">📅 پلنر</a>
+            <a href="/finance">💰 مالی</a>
+            <a href="/habits">🔥 عادت‌ها</a>
+            <a href="/meditation" class="active">🧘 مدیتیشن</a>
+            <a href="/profile">👤 پروفایل</a>
+        </div>
+
+        <div class="meditation-card">
+            <div class="title">🧘 مدیتیشن روزانه</div>
+            <div class="desc">۵ دقیقه آرامش و تمرکز برای شروع روز</div>
+            <button class="btn" onclick="startMeditation()">شروع مدیتیشن</button>
+        </div>
+
+        <div class="meditation-card">
+            <div class="title">🌬️ تنفس عمیق</div>
+            <div class="desc">تمرین تنفس برای کاهش استرس</div>
+            <button class="btn" onclick="startBreathing()">شروع تمرین تنفس</button>
+        </div>
+
+        <div class="meditation-card">
+            <div class="title">🎵 موسیقی آرامش‌بخش</div>
+            <div class="desc">موسیقی بدون کلام برای مدیتیشن</div>
+            <button class="btn" onclick="playMusic()">پخش موسیقی</button>
+        </div>
+
+        <div class="timer-section">
+            <div class="timer" id="timerDisplay">۰۵:۰۰</div>
+            <div class="controls">
+                <button class="btn" onclick="startTimer()">⏱️ شروع</button>
+                <button class="btn" onclick="pauseTimer()">⏸️ مکث</button>
+                <button class="btn" onclick="resetTimer()">🔄 ریست</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let timerInterval;
+        let timeLeft = 300;
+        let isRunning = false;
+
+        function formatTime(seconds) {
+            let mins = Math.floor(seconds / 60);
+            let secs = seconds % 60;
+            return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+        }
+
+        function updateTimer() {
+            document.getElementById('timerDisplay').textContent = formatTime(timeLeft);
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                alert('⏰ زمان مدیتیشن به پایان رسید!');
+                isRunning = false;
+            }
+        }
+
+        function startTimer() {
+            if (!isRunning && timeLeft > 0) {
+                isRunning = true;
+                timerInterval = setInterval(() => {
+                    timeLeft--;
+                    updateTimer();
+                }, 1000);
+            }
+        }
+
+        function pauseTimer() {
+            clearInterval(timerInterval);
+            isRunning = false;
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            isRunning = false;
+            timeLeft = 300;
+            updateTimer();
+        }
+
+        function startMeditation() {
+            resetTimer();
+            startTimer();
+        }
+
+        function startBreathing() {
+            alert('🌬️ نفس عمیق بکش...\n۱. ۴ ثانیه دم\n۲. ۴ ثانیه نگه دار\n۳. ۴ ثانیه بازدم');
+        }
+
+        function playMusic() {
+            alert('🎵 موسیقی آرامش‌بخش شروع شد (نمایشی)');
+        }
+    </script>
+</body>
+</html>
