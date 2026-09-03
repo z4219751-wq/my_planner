@@ -28,6 +28,8 @@ def get_db():
 def init_db():
     conn = get_db()
     cursor = conn.cursor()
+    
+    # ====== جدول کاربران ======
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -42,6 +44,8 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    
+    # ====== جدول وظایف ======
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS tasks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -54,6 +58,8 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
     ''')
+    
+    # ====== جدول تراکنش‌ها ======
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS transactions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,6 +72,8 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
     ''')
+    
+    # ====== جدول عادت‌ها ======
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS habits (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -77,6 +85,8 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
     ''')
+    
+    # ====== جدول ثبت عادت‌ها ======
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS habit_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -86,6 +96,8 @@ def init_db():
             FOREIGN KEY (habit_id) REFERENCES habits (id) ON DELETE CASCADE
         )
     ''')
+    
+    # ====== جدول دعوت‌ها ======
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS invites (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -96,6 +108,21 @@ def init_db():
             FOREIGN KEY (inviter_id) REFERENCES users (id)
         )
     ''')
+    
+    # ====== جدول ژورنال ======
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS journal_entries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            content TEXT NOT NULL,
+            mood TEXT,
+            date DATE NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
     conn.commit()
     conn.close()
 
@@ -135,23 +162,30 @@ def get_motivational_message():
     ]
     return random.choice(messages)
 
+# ======================== صفحات اصلی ========================
+
 @app.route('/')
 def index():
     if 'user_id' not in session:
         return redirect(url_for('login'))
+    
     user_id = session['user_id']
     today = date.today().isoformat()
     conn = get_db()
     cursor = conn.cursor()
+    
     user = cursor.execute('SELECT username, full_name, profile_image FROM users WHERE id = ?', (user_id,)).fetchone()
     username = user['username'] if user else 'کاربر'
     profile_image = user['profile_image'] if user else 'default.png'
+    
     tasks = cursor.execute('SELECT * FROM tasks WHERE user_id = ? AND date = ?', (user_id, today)).fetchall()
     tasks_count = len(tasks)
     done_count = sum(1 for t in tasks if t['done'])
     completion = int((done_count / tasks_count * 100)) if tasks_count > 0 else 0
+    
     expense = cursor.execute('SELECT SUM(amount) as total FROM transactions WHERE user_id = ? AND date = ? AND type = "expense"', (user_id, today)).fetchone()
     today_expense = expense['total'] or 0
+    
     habits = cursor.execute('SELECT * FROM habits WHERE user_id = ?', (user_id,)).fetchall()
     habit_progress = []
     for h in habits:
@@ -163,9 +197,11 @@ def index():
             'color': h['color'],
             'done': log is not None
         })
+    
     sub_info = cursor.execute('SELECT subscription_type, subscription_end FROM users WHERE id = ?', (user_id,)).fetchone()
     is_premium_user = is_premium(user_id)
     conn.close()
+    
     return render_template('index.html',
                          username=username,
                          profile_image=profile_image,
@@ -182,6 +218,8 @@ def index():
                          done_habits=sum(1 for h in habit_progress if h['done']),
                          is_premium=is_premium_user,
                          subscription_type=sub_info['subscription_type'] if sub_info else 'free')
+
+# ======================== احراز هویت ========================
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -230,6 +268,8 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
+# ======================== پروفایل ========================
+
 @app.route('/profile', methods=['GET', 'POST'])
 def profile():
     if 'user_id' not in session:
@@ -251,6 +291,8 @@ def profile():
         return redirect(url_for('profile'))
     conn.close()
     return render_template('profile.html', user=user)
+
+# ======================== اشتراک ========================
 
 @app.route('/subscription')
 def subscription():
@@ -276,6 +318,8 @@ def buy_subscription(plan):
     conn.close()
     return redirect(url_for('subscription'))
 
+# ======================== دعوت از دوستان ========================
+
 @app.route('/invite')
 def invite():
     if 'user_id' not in session:
@@ -286,13 +330,7 @@ def invite():
     conn.close()
     return render_template('invite.html', invite_code=user['invite_code'], invites=invites)
 
-@app.route('/meditation')
-def meditation():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    if not is_premium(session['user_id']):
-        return redirect(url_for('subscription'))
-    return render_template('meditation.html')
+# ======================== مطالعه ========================
 
 @app.route('/study_techniques')
 def study_techniques():
@@ -352,6 +390,8 @@ def technique_detail(tech_id):
         return "تکنیک پیدا نشد"
     return render_template('technique_detail.html', technique=tech)
 
+# ======================== چت‌بات ========================
+
 @app.route('/chatbot')
 def chatbot():
     if 'user_id' not in session:
@@ -360,13 +400,48 @@ def chatbot():
         return redirect(url_for('subscription'))
     return render_template('chatbot.html')
 
-@app.route('/journal')
+# ======================== ژورنال ========================
+
+@app.route('/journal', methods=['GET', 'POST'])
 def journal():
     if 'user_id' not in session:
         return redirect(url_for('login'))
     if not is_premium(session['user_id']):
         return redirect(url_for('subscription'))
-    return render_template('journal.html')
+    
+    user_id = session['user_id']
+    today = date.today().isoformat()
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    if request.method == 'POST':
+        title = request.form['title']
+        content = request.form['content']
+        mood = request.form.get('mood', '')
+        cursor.execute('''
+            INSERT INTO journal_entries (user_id, title, content, mood, date)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (user_id, title, content, mood, today))
+        conn.commit()
+        conn.close()
+        return redirect(url_for('journal'))
+    
+    entries = cursor.execute('''
+        SELECT * FROM journal_entries WHERE user_id = ? ORDER BY date DESC, created_at DESC
+    ''', (user_id,)).fetchall()
+    conn.close()
+    
+    return render_template('journal.html', entries=entries, today=today)
+
+# ======================== سایر صفحات ========================
+
+@app.route('/meditation')
+def meditation():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    if not is_premium(session['user_id']):
+        return redirect(url_for('subscription'))
+    return render_template('meditation.html')
 
 @app.route('/shopping_list')
 def shopping_list():
@@ -380,7 +455,8 @@ def settings():
         return redirect(url_for('login'))
     return render_template('settings.html')
 
-# ====== وظایف، عادت‌ها، مالی ======
+# ======================== وظایف ========================
+
 @app.route('/add_task', methods=['POST'])
 def add_task():
     if 'user_id' not in session:
@@ -414,6 +490,8 @@ def delete_task(task_id):
     conn.commit()
     conn.close()
     return redirect(url_for('index'))
+
+# ======================== عادت‌ها ========================
 
 @app.route('/add_habit', methods=['POST'])
 def add_habit():
@@ -452,6 +530,8 @@ def delete_habit(habit_id):
     conn.close()
     return redirect(url_for('index'))
 
+# ======================== مالی ========================
+
 @app.route('/add_transaction', methods=['POST'])
 def add_transaction():
     if 'user_id' not in session:
@@ -473,6 +553,8 @@ def delete_transaction(trans_id):
     conn.commit()
     conn.close()
     return redirect(url_for('finance'))
+
+# ======================== صفحات نمایش ========================
 
 @app.route('/planner')
 def planner():
