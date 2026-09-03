@@ -11,183 +11,119 @@
             background: linear-gradient(145deg, #f0f7ff 0%, #e3edfa 100%);
             min-height: 100vh;
             padding: 20px;
-            color: #1a2a3a;
         }
-        .container { max-width: 900px; margin: 0 auto; }
-
-        .header {
-            background: linear-gradient(135deg, #4A90D9 0%, #5BA3E6 100%);
+        .container { max-width: 700px; margin: 0 auto; }
+        .card {
+            background: white;
             border-radius: 24px;
-            padding: 28px;
-            color: white;
-            margin-bottom: 24px;
-            box-shadow: 0 12px 30px rgba(74, 144, 217, 0.35);
+            padding: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
         }
-        .header h1 { font-size: 26px; }
-        .header .sub { opacity: 0.9; font-size: 15px; }
-
-        .nav-tabs {
-            display: flex;
-            gap: 6px;
-            flex-wrap: wrap;
-            margin-bottom: 24px;
-            background: white;
-            border-radius: 16px;
-            padding: 6px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        }
-        .nav-tabs a {
-            flex: 1;
-            min-width: 70px;
-            text-align: center;
-            padding: 10px 12px;
-            border-radius: 12px;
+        .card .back {
+            display: inline-block;
+            color: #4A90D9;
             text-decoration: none;
-            color: #4a6a85;
             font-weight: 600;
-            font-size: 13px;
+            margin-bottom: 16px;
+        }
+        .card .back:hover { text-decoration: underline; }
+        .card h1 { color: #1a2a3a; font-size: 28px; margin-bottom: 8px; }
+        .card .sub { color: #6b7f94; margin-bottom: 20px; }
+        
+        .plan-box {
+            border: 2px solid #eef3f8;
+            border-radius: 16px;
+            padding: 20px;
+            margin: 12px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             transition: 0.3s;
         }
-        .nav-tabs a:hover { background: #e8f0fe; }
-        .nav-tabs a.active {
-            background: linear-gradient(135deg, #4A90D9, #5BA3E6);
-            color: white;
-            box-shadow: 0 4px 15px rgba(74, 144, 217, 0.3);
-        }
-
-        .plans {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin-bottom: 24px;
-        }
-        .plan-card {
-            background: white;
-            border-radius: 20px;
-            padding: 24px;
-            text-align: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-            transition: 0.3s;
-            border: 2px solid transparent;
-        }
-        .plan-card:hover { transform: translateY(-4px); box-shadow: 0 8px 30px rgba(0,0,0,0.1); }
-        .plan-card.popular { border-color: #F5A623; }
-        .plan-card .plan-name { font-size: 20px; font-weight: 700; }
-        .plan-card .plan-price { font-size: 32px; font-weight: 800; color: #4A90D9; margin: 12px 0; }
-        .plan-card .plan-price span { font-size: 16px; font-weight: 400; color: #6b7f94; }
-        .plan-card .plan-features { list-style: none; padding: 0; margin: 16px 0; }
-        .plan-card .plan-features li { padding: 6px 0; color: #4a6a85; font-size: 14px; }
-        .plan-card .plan-features li::before { content: "✅ "; }
-        .plan-card .btn {
+        .plan-box:hover { border-color: #4A90D9; }
+        .plan-box .plan-name { font-weight: 700; font-size: 18px; color: #1a2a3a; }
+        .plan-box .plan-price { font-size: 20px; font-weight: 700; color: #4A90D9; }
+        .plan-box .plan-desc { font-size: 13px; color: #6b7f94; }
+        .plan-box .btn-buy {
             background: linear-gradient(135deg, #4A90D9, #5BA3E6);
             color: white;
             border: none;
-            padding: 12px 32px;
+            padding: 10px 24px;
             border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
             cursor: pointer;
+            font-weight: 600;
             transition: 0.3s;
             text-decoration: none;
+        }
+        .plan-box .btn-buy:hover { transform: scale(1.05); box-shadow: 0 4px 15px rgba(74, 144, 217, 0.4); }
+        
+        .current-plan {
+            background: #e8f0fe;
+            border-radius: 16px;
+            padding: 16px;
+            margin: 16px 0;
+            text-align: center;
+            color: #1a2a3a;
+        }
+        .current-plan .badge {
             display: inline-block;
-        }
-        .plan-card .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(74, 144, 217, 0.4); }
-        .plan-card .btn-outline {
-            background: transparent;
-            color: #4A90D9;
-            border: 2px solid #4A90D9;
-        }
-        .plan-card .btn-outline:hover { background: #4A90D9; color: white; }
-        .plan-card .badge {
-            background: #F5A623;
-            color: white;
             padding: 4px 16px;
             border-radius: 20px;
-            font-size: 12px;
             font-weight: 600;
-            display: inline-block;
-            margin-bottom: 12px;
+            font-size: 14px;
         }
-
-        .current-plan {
-            background: white;
-            border-radius: 20px;
-            padding: 24px;
-            text-align: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        }
-        .current-plan .label { color: #6b7f94; font-size: 14px; }
-        .current-plan .value { font-size: 20px; font-weight: 700; margin-top: 4px; }
-
-        @media (max-width: 600px) {
-            .plans { grid-template-columns: 1fr; }
-        }
+        .badge-premium { background: #d5f5e3; color: #27AE60; }
+        .badge-free { background: #fde8e8; color: #e74c3c; }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
+        <div class="card">
+            <a href="/" class="back">← بازگشت به خانه</a>
             <h1>⭐ اشتراک My Planner</h1>
-            <div class="sub">با اشتراک ویژه، از تمام امکانات لذت ببرید</div>
-        </div>
-
-        <div class="nav-tabs">
-            <a href="/">🏠 خانه</a>
-            <a href="/planner">📅 پلنر</a>
-            <a href="/finance">💰 مالی</a>
-            <a href="/habits">🔥 عادت‌ها</a>
-            <a href="/shopping_list">🛒 خرید</a>
-            <a href="/profile">👤 پروفایل</a>
-            <a href="/subscription" class="active">⭐ اشتراک</a>
-        </div>
-
-        <div class="plans">
-            <div class="plan-card">
-                <div class="plan-name">📅 هفتگی</div>
-                <div class="plan-price">۱۵,۰۰۰ <span>تومان</span></div>
-                <ul class="plan-features">
-                    <li>دسترسی به تمام قابلیت‌ها</li>
-                    <li>۵ روز اشتراک رایگان برای دوستان</li>
-                    <li>پشتیبانی ۲۴/۷</li>
-                </ul>
-                <a href="/buy_subscription/weekly" class="btn">خرید اشتراک</a>
-            </div>
-
-            <div class="plan-card popular">
-                <div class="badge">⭐ محبوب‌ترین</div>
-                <div class="plan-name">📆 ماهانه</div>
-                <div class="plan-price">۵۰,۰۰۰ <span>تومان</span></div>
-                <ul class="plan-features">
-                    <li>دسترسی به تمام قابلیت‌ها</li>
-                    <li>۱۰ روز اشتراک رایگان برای دوستان</li>
-                    <li>پشتیبانی ۲۴/۷</li>
-                    <li>آپدیت‌های ویژه</li>
-                </ul>
-                <a href="/buy_subscription/monthly" class="btn">خرید اشتراک</a>
-            </div>
-
-            <div class="plan-card">
-                <div class="plan-name">🎯 سالانه</div>
-                <div class="plan-price">۴۰۰,۰۰۰ <span>تومان</span></div>
-                <ul class="plan-features">
-                    <li>دسترسی به تمام قابلیت‌ها</li>
-                    <li>۲۰ روز اشتراک رایگان برای دوستان</li>
-                    <li>پشتیبانی ۲۴/۷ ویژه</li>
-                    <li>آپدیت‌های ویژه</li>
-                    <li>✨ ۲ ماه رایگان</li>
-                </ul>
-                <a href="/buy_subscription/yearly" class="btn">خرید اشتراک</a>
-            </div>
-        </div>
-
-        <div class="current-plan">
-            <div class="label">وضعیت اشتراک فعلی شما</div>
-            <div class="value">
-                {% if current != 'free' %}
-                    ⭐ فعال ({{ current }}) - تا {{ end[:10] if end else 'نامشخص' }}
+            <p class="sub">با تهیه اشتراک، به تمام امکانات ویژه دسترسی پیدا کن!</p>
+            
+            <div class="current-plan">
+                وضعیت فعلی:
+                {% if current in ['trial', 'weekly', 'monthly', 'yearly'] %}
+                    <span class="badge badge-premium">✅ فعال - {{ current }}</span>
+                    <p style="margin-top: 8px; font-size: 14px;">تاریخ پایان: {{ end }}</p>
                 {% else %}
-                    🔓 نسخه رایگان
+                    <span class="badge badge-free">🔓 رایگان</span>
                 {% endif %}
+            </div>
+            
+            <div class="plan-box">
+                <div>
+                    <div class="plan-name">📅 هفتگی</div>
+                    <div class="plan-desc">مناسب برای تست کردن</div>
+                </div>
+                <div>
+                    <span class="plan-price">۱۵,۰۰۰</span>
+                    <a href="/buy_subscription/weekly" class="btn-buy">خرید</a>
+                </div>
+            </div>
+            
+            <div class="plan-box" style="border-color: #4A90D9; background: #f8faff;">
+                <div>
+                    <div class="plan-name">📆 ماهانه</div>
+                    <div class="plan-desc">محبوب‌ترین گزینه</div>
+                </div>
+                <div>
+                    <span class="plan-price">۵۰,۰۰۰</span>
+                    <a href="/buy_subscription/monthly" class="btn-buy">خرید</a>
+                </div>
+            </div>
+            
+            <div class="plan-box">
+                <div>
+                    <div class="plan-name">📅 سالانه</div>
+                    <div class="plan-desc">بهترین ارزش</div>
+                </div>
+                <div>
+                    <span class="plan-price">۴۰۰,۰۰۰</span>
+                    <a href="/buy_subscription/yearly" class="btn-buy">خرید</a>
+                </div>
             </div>
         </div>
     </div>
