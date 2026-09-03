@@ -308,5 +308,5 @@ def habits_page():
     conn.close()
     return render_template('habits.html', habits=habits, today=today)
 
-if name == '__main__':
+if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
