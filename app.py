@@ -5,6 +5,7 @@ import hashlib
 import uuid
 import random
 import os
+import json
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
@@ -16,6 +17,15 @@ UPLOAD_FOLDER = 'static/profile_pics'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+# ====== بارگذاری فایل‌های ترجمه ======
+def load_translations(lang):
+    try:
+        with open(f'locales/{lang}.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except:
+        with open('locales/fa.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -29,7 +39,6 @@ def init_db():
     conn = get_db()
     cursor = conn.cursor()
     
-    # ====== جدول کاربران ======
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,6 +47,7 @@ def init_db():
             password TEXT NOT NULL,
             full_name TEXT,
             profile_image TEXT DEFAULT 'default.png',
+            language TEXT DEFAULT 'fa',
             subscription_type TEXT DEFAULT 'trial',
             subscription_end DATE,
             invite_code TEXT UNIQUE,
@@ -45,7 +55,6 @@ def init_db():
         )
     ''')
     
-    # ====== جدول وظایف ======
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS tasks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,7 +68,6 @@ def init_db():
         )
     ''')
     
-    # ====== جدول تراکنش‌ها ======
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS transactions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -73,7 +81,6 @@ def init_db():
         )
     ''')
     
-    # ====== جدول عادت‌ها ======
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS habits (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -86,7 +93,6 @@ def init_db():
         )
     ''')
     
-    # ====== جدول ثبت عادت‌ها ======
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS habit_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -97,7 +103,6 @@ def init_db():
         )
     ''')
     
-    # ====== جدول دعوت‌ها ======
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS invites (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -109,7 +114,6 @@ def init_db():
         )
     ''')
     
-    # ====== جدول ژورنال ======
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS journal_entries (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -120,6 +124,19 @@ def init_db():
             date DATE NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS language_lessons (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            language TEXT NOT NULL,
+            level TEXT NOT NULL,
+            title TEXT NOT NULL,
+            content TEXT NOT NULL,
+            vocabulary TEXT,
+            quiz TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     
@@ -162,6 +179,52 @@ def get_motivational_message():
     ]
     return random.choice(messages)
 
+def get_user_language(user_id):
+    conn = get_db()
+    user = conn.execute('SELECT language FROM users WHERE id = ?', (user_id,)).fetchone()
+    conn.close()
+    return user['language'] if user else 'fa'
+
+# ====== اضافه کردن درس‌های نمونه ======
+def add_sample_lessons():
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    count = cursor.execute('SELECT COUNT(*) FROM language_lessons').fetchone()[0]
+    if count > 0:
+        conn.close()
+        return
+    
+    lessons = [
+        ('english', 'beginner', 'سلام و احوالپرسی', 
+         'در این درس با سلام و احوالپرسی به انگلیسی آشنا می‌شوید.\n\nHello = سلام\nGood morning = صبح بخیر\nHow are you? = حال شما چطور است؟\nI\'m fine = خوبم',
+         'Hello, Good morning, How are you?, I\'m fine',
+         'سلام به انگلیسی چه میشود؟\nالف) Hello\nب) Goodbye'),
+        ('english', 'beginner', 'اعداد و شمارش', 
+         'در این درس اعداد ۱ تا ۱۰ را یاد می‌گیرید.\n\nOne = ۱\nTwo = ۲\nThree = ۳\nFour = ۴\nFive = ۵',
+         'One, Two, Three, Four, Five',
+         'عدد ۳ به انگلیسی چیست؟\nالف) Two\nب) Three'),
+        ('arabic', 'beginner', 'التحية (سلام و احوالپرسی)', 
+         'في هذا الدرس تتعلم التحية بالعربية.\n\nالسلام علیکم = سلام\nصباح الخیر = صبح بخیر\nکیف حالک؟ = حال شما چطور است؟\nبخیر = خوبم',
+         'السلام علیکم, صباح الخیر, کیف حالک؟, بخیر',
+         'سلام به عربی چه میشود؟\nالف) السلام علیکم\nب) صباح الخیر'),
+        ('arabic', 'beginner', 'الأرقام (اعداد)', 
+         'في هذا الدرس تتعلم الأرقام من ۱ إلى ۱۰.\n\nواحد = ۱\nإثنان = ۲\nثلاثة = ۳\nأربعة = ۴\nخمسة = ۵',
+         'واحد, إثنان, ثلاثة, أربعة, خمسة',
+         'عدد ۳ به عربی چیست؟\nالف) إثنان\nب) ثلاثة'),
+    ]
+    
+    for lesson in lessons:
+        cursor.execute('''
+            INSERT INTO language_lessons (language, level, title, content, vocabulary, quiz)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', lesson)
+    
+    conn.commit()
+    conn.close()
+
+add_sample_lessons()
+
 # ======================== صفحات اصلی ========================
 
 @app.route('/')
@@ -174,9 +237,11 @@ def index():
     conn = get_db()
     cursor = conn.cursor()
     
-    user = cursor.execute('SELECT username, full_name, profile_image FROM users WHERE id = ?', (user_id,)).fetchone()
+    user = cursor.execute('SELECT username, full_name, profile_image, language FROM users WHERE id = ?', (user_id,)).fetchone()
     username = user['username'] if user else 'کاربر'
     profile_image = user['profile_image'] if user else 'default.png'
+    user_lang = user['language'] if user else 'fa'
+    translations = load_translations(user_lang)
     
     tasks = cursor.execute('SELECT * FROM tasks WHERE user_id = ? AND date = ?', (user_id, today)).fetchall()
     tasks_count = len(tasks)
@@ -205,7 +270,7 @@ def index():
     return render_template('index.html',
                          username=username,
                          profile_image=profile_image,
-                         welcome_message=f"سلام {username} عزیز! 🌸",
+                         welcome_message=translations.get('welcome', 'سلام {name} عزیز! 🌸').format(name=username),
                          motivational_message=get_motivational_message(),
                          tasks=tasks,
                          tasks_count=tasks_count,
@@ -217,7 +282,23 @@ def index():
                          total_habits=len(habits),
                          done_habits=sum(1 for h in habit_progress if h['done']),
                          is_premium=is_premium_user,
-                         subscription_type=sub_info['subscription_type'] if sub_info else 'free')
+                         subscription_type=sub_info['subscription_type'] if sub_info else 'free',
+                         translations=translations,
+                         current_lang=user_lang)
+
+# ======================== تنظیمات زبان ========================
+
+@app.route('/set_language/<lang>')
+def set_language(lang):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    if lang not in ['fa', 'en', 'ar']:
+        return "زبان نامعتبر"
+    conn = get_db()
+    conn.execute('UPDATE users SET language = ? WHERE id = ?', (lang, session['user_id']))
+    conn.commit()
+    conn.close()
+    return redirect(request.referrer or url_for('index'))
 
 # ======================== احراز هویت ========================
 
@@ -433,6 +514,39 @@ def journal():
     
     return render_template('journal.html', entries=entries, today=today)
 
+# ======================== آموزش زبان ========================
+
+@app.route('/language/<lang>')
+def language_home(lang):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    if not is_premium(session['user_id']):
+        return redirect(url_for('subscription'))
+    if lang not in ['english', 'arabic']:
+        return "زبان نامعتبر"
+    
+    conn = get_db()
+    lessons = conn.execute('SELECT * FROM language_lessons WHERE language = ? ORDER BY level, id', (lang,)).fetchall()
+    conn.close()
+    
+    return render_template('language_home.html', lang=lang, lessons=lessons)
+
+@app.route('/lesson/<int:lesson_id>')
+def lesson_detail(lesson_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    if not is_premium(session['user_id']):
+        return redirect(url_for('subscription'))
+    
+    conn = get_db()
+    lesson = conn.execute('SELECT * FROM language_lessons WHERE id = ?', (lesson_id,)).fetchone()
+    conn.close()
+    
+    if not lesson:
+        return "درس پیدا نشد"
+    
+    return render_template('lesson_detail.html', lesson=lesson)
+
 # ======================== سایر صفحات ========================
 
 @app.route('/meditation')
@@ -453,7 +567,13 @@ def shopping_list():
 def settings():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    return render_template('settings.html')
+    
+    conn = get_db()
+    user = conn.execute('SELECT language FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+    conn.close()
+    current_lang = user['language'] if user else 'fa'
+    
+    return render_template('settings.html', current_lang=current_lang)
 
 # ======================== وظایف ========================
 
