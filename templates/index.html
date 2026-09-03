@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>My Planner</title>
+    
+    <!-- ===== PWA ===== -->
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+    <meta name="theme-color" content="#4A90D9">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -86,7 +94,7 @@
             transform: rotate(30deg);
         }
         
-        /* ===== بقیه استایل‌ها ===== */
+        /* ===== بخش خوش‌آمدگویی ===== */
         .welcome-section {
             background: linear-gradient(135deg, #4A90D9 0%, #5BA3E6 100%);
             border-radius: 24px;
@@ -99,6 +107,7 @@
         .welcome-section .motivational { font-size: 18px; opacity: 0.95; margin-top: 8px; font-style: italic; }
         .welcome-section .sub-motivational { font-size: 15px; opacity: 0.85; margin-top: 6px; }
         
+        /* ===== ناوبری ===== */
         .nav-tabs {
             display: flex;
             gap: 6px;
@@ -133,6 +142,7 @@
         }
         .nav-tabs a.premium:hover { background: #FFF8E1; }
         
+        /* ===== کارت‌های آمار ===== */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
@@ -153,6 +163,7 @@
         .stat-card.green .number { color: #27AE60; }
         .stat-card.orange .number { color: #F5A623; }
         
+        /* ===== بخش‌ها ===== */
         .section {
             background: white;
             border-radius: 20px;
@@ -175,6 +186,7 @@
             color: #4A90D9;
         }
         
+        /* ===== وظایف ===== */
         .task-item {
             display: flex;
             align-items: center;
@@ -220,6 +232,7 @@
         }
         .task-delete:hover { opacity: 1; }
         
+        /* ===== عادت‌ها ===== */
         .habits-container {
             display: flex;
             gap: 20px;
@@ -255,6 +268,7 @@
         .habit-circle:hover { transform: scale(1.08); }
         .habit-name { font-size: 13px; color: #4a6a85; font-weight: 500; }
         
+        /* ===== فرم ===== */
         .form-row {
             display: flex;
             gap: 10px;
@@ -289,6 +303,7 @@
         .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(74, 144, 217, 0.4); }
         .empty-state { text-align: center; color: #9aafc4; padding: 20px 0; }
         
+        /* ===== فوتر ===== */
         .footer {
             text-align: center;
             padding: 30px 0 20px;
@@ -324,7 +339,7 @@
 <body>
     <div class="container">
         
-        <!-- ===== هدر با عکس پروفایل ===== -->
+        <!-- ===== هدر ===== -->
         <div class="header">
             <div class="header-left">
                 <span class="logo">📋 My Planner</span>
@@ -342,7 +357,7 @@
             </div>
         </div>
         
-        <!-- ===== بخش خوش‌آمدگویی ===== -->
+        <!-- ===== خوش‌آمدگویی ===== -->
         <div class="welcome-section">
             <h1>{{ welcome_message }}</h1>
             <div class="motivational">✨ {{ motivational_message }}</div>
@@ -466,5 +481,14 @@
             </div>
         </div>
     </div>
+    
+    <!-- ===== Service Worker ===== -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/static/sw.js')
+                .then(() => console.log('✅ Service Worker registered!'))
+                .catch(() => console.log('❌ Service Worker registration failed.'));
+        }
+    </script>
 </body>
 </html>

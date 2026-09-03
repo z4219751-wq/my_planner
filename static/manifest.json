@@ -1,0 +1,13 @@
+{
+  "background_color": "#4a90d9",
+  "dir": "ltr",
+  "display": "standalone",
+  "name": "my planner",
+  "orientation": "any",
+  "scope": "/",
+  "short_name": "planner",
+  "start_url": "/",
+  "theme_color": "#4a90d9",
+  "id": "my_planner",
+  "description": "برنامه ریزی روزانه،مدیریت مالی،عادت ها و آموزش زبان"
+}
