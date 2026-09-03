@@ -3,7 +3,7 @@ from datetime import date
 import sqlite3
 import hashlib
 
-app = Flask(name)
+app = Flask(__name__)
 app.secret_key = "mysecretkey123456789"
 
 def get_db():
@@ -308,5 +308,5 @@ def habits_page():
     conn.close()
     return render_template('habits.html', habits=habits, today=today)
 
-if name == 'main':
+if name == '__main__':
     app.run(host='0.0.0.0', port=10000)
