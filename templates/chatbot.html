@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>چت‌بات | My Planner</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(145deg, #f0f7ff 0%, #e3edfa 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 700px; margin: 0 auto; }
+        
+        .card {
+            background: white;
+            border-radius: 24px;
+            padding: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .card .back {
+            display: inline-block;
+            color: #4A90D9;
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+        .card .back:hover { text-decoration: underline; }
+        
+        .card h1 {
+            color: #1a2a3a;
+            font-size: 28px;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .card .sub {
+            color: #6b7f94;
+            font-size: 16px;
+            margin-bottom: 20px;
+        }
+        
+        /* ===== چت ===== */
+        .chat-box {
+            border: 2px solid #eef3f8;
+            border-radius: 16px;
+            padding: 16px;
+            height: 400px;
+            overflow-y: auto;
+            margin: 16px 0;
+            background: #fafcff;
+        }
+        .message {
+            display: flex;
+            margin-bottom: 12px;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        .message.user {
+            flex-direction: row-reverse;
+        }
+        .message .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        .message.bot .avatar {
+            background: #4A90D9;
+            color: white;
+        }
+        .message.user .avatar {
+            background: #e8f0fe;
+            color: #4A90D9;
+        }
+        .message .bubble {
+            max-width: 75%;
+            padding: 10px 16px;
+            border-radius: 16px;
+            line-height: 1.6;
+            font-size: 15px;
+        }
+        .message.bot .bubble {
+            background: #e8f0fe;
+            color: #1a2a3a;
+            border-bottom-right-radius: 4px;
+        }
+        .message.user .bubble {
+            background: #4A90D9;
+            color: white;
+            border-bottom-left-radius: 4px;
+        }
+        .message .time {
+            font-size: 11px;
+            color: #9aafc4;
+            margin-top: 4px;
+        }
+        
+        .chat-input {
+            display: flex;
+            gap: 10px;
+            margin-top: 12px;
+        }
+        .chat-input input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #dce5ef;
+            border-radius: 12px;
+            font-size: 15px;
+            transition: 0.3s;
+        }
+        .chat-input input:focus {
+            outline: none;
+            border-color: #4A90D9;
+        }
+        .chat-input .btn-send {
+            background: linear-gradient(135deg, #4A90D9, #5BA3E6);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .chat-input .btn-send:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(74, 144, 217, 0.4);
+        }
+        
+        .suggestions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+        .suggestions button {
+            background: #e8f0fe;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 13px;
+            color: #4A90D9;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .suggestions button:hover {
+            background: #4A90D9;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <a href="/" class="back">← بازگشت به خانه</a>
+            
+            <h1>🤖 چت‌بات هوشمند</h1>
+            <p class="sub">از من هر سوالی داری بپرس، راهنماییت می‌کنم!</p>
+            
+            <!-- پنجره چت -->
+            <div class="chat-box" id="chatBox">
+                <div class="message bot">
+                    <div class="avatar">🤖</div>
+                    <div>
+                        <div class="bubble">
+                            سلام! 👋 من دستیار هوشمند My Planner هستم.<br>
+                            می‌تونی ازم بپرسی:
+                            <ul style="margin-top: 8px; padding-right: 20px;">
+                                <li>📅 چطور برنامه‌ریزی کنم؟</li>
+                                <li>📚 بهترین روش مطالعه چیه؟</li>
+                                <li>💰 چطور بودجه‌بندی کنم؟</li>
+                                <li>🔥 عادت‌های خوب چطور بسازم؟</li>
+                            </ul>
+                        </div>
+                        <div class="time">همین الان</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- پیشنهادات -->
+            <div class="suggestions">
+                <button onclick="askQuestion('بهترین روش مطالعه چیه؟')">📚 روش مطالعه</button>
+                <button onclick="askQuestion('چطور انگیزه بگیرم؟')">💪 انگیزه</button>
+                <button onclick="askQuestion('چطور عادت بسازم؟')">🔥 عادت</button>
+                <button onclick="askQuestion('برنامه‌ریزی روزانه چطور؟')">📅 برنامه‌ریزی</button>
+            </div>
+            
+            <!-- ورودی چت -->
+            <div class="chat-input">
+                <input type="text" id="chatInput" placeholder="سوال خود را بنویسید..." onkeypress="if(event.key==='Enter') sendMessage()">
+                <button class="btn-send" onclick="sendMessage()">📤 ارسال</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        const chatBox = document.getElementById('chatBox');
+        const chatInput = document.getElementById('chatInput');
+        
+        // پاسخ‌های هوشمند
+        function getBotResponse(message) {
+            const msg = message.toLowerCase();
+            
+            if (msg.includes('سلام') || msg.includes('هی') || msg.includes('درود')) {
+                return 'سلام! 👋 چطور می‌تونم کمکت کنم؟';
+            }
+            
+            if (msg.includes('مطالعه') || msg.includes('درس') || msg.includes('یادگیری')) {
+                return '📚 بهترین روش مطالعه، تکنیک پومودورو هست: ۲۵ دقیقه مطالعه و ۵ دقیقه استراحت. همچنین تکنیک فاینمن (آموزش به دیگران) خیلی موثره!';
+            }
+            
+            if (msg.includes('برنامه') || msg.includes('پلن') || msg.includes('روزانه')) {
+                return '📅 برای برنامه‌ریزی روزانه، سه کار مهم رو مشخص کن و اولویت‌بندی کن. از بخش "پلنر روزانه" استفاده کن!';
+            }
+            
+            if (msg.includes('عادت') || msg.includes('روتین') || msg.includes('عادت‌ها')) {
+                return '🔥 برای ساختن عادت، از قانون ۲۱ روز استفاده کن. هر روز یک کار کوچک رو تکرار کن. از بخش "عادت‌ها" برای پیگیری استفاده کن!';
+            }
+            
+            if (msg.includes('انگیزه') || msg.includes('بی انگیزگی') || msg.includes('نیرو')) {
+                return '💪 انگیزه میاد و میره، اما عادت‌ها می‌مونن. با یه کار کوچیک شروع کن و به خودت پاداش بده. یادت باشه: "هر روز یک قدم"!';
+            }
+            
+            if (msg.includes('هزینه') || msg.includes('پول') || msg.includes('بودجه') || msg.includes('مالی')) {
+                return '💰 برای مدیریت مالی، اول درآمد و هزینه‌هات رو ثبت کن. ۵۰٪ نیازها، ۳۰٪ خواسته‌ها، ۲۰٪ پس‌انداز. از بخش "مدیریت مالی" استفاده کن!';
+            }
+            
+            if (msg.includes('زبان') || msg.includes('انگلیسی') || msg.includes('عربی')) {
+                return '🌍 برای یادگیری زبان، هر روز ۱۵ دقیقه گوش دادن و تکرار کن. از بخش "آموزش زبان" استفاده کن!';
+            }
+            
+            if (msg.includes('مدیتیشن') || msg.includes('آرامش') || msg.includes('استرس')) {
+                return '🧘 برای مدیتیشن، ۵ دقیقه نفس عمیق بکش و روی تنفست تمرکز کن. از بخش "مدیتیشن" استفاده کن!';
+            }
+            
+            return '💡 سوال خوبی پرسیدی! فعلاً اطلاعات دقیقی ندارم، ولی می‌تونم پیشنهاد بدم از بخش‌های مختلف استفاده کنی. سوال دیگه‌ای داری؟';
+        }
+        
+        function sendMessage() {
+            const message = chatInput.value.trim();
+            if (!message) return;
+            
+            // نمایش پیام کاربر
+            addMessage(message, 'user');
+            chatInput.value = '';
+            
+            // پاسخ ربات با تاخیر
+            setTimeout(() => {
+                const response = getBotResponse(message);
+                addMessage(response, 'bot');
+            }, 500);
+        }
+        
+        function addMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'avatar';
+            avatar.textContent = sender === 'bot' ? '🤖' : '👤';
+            
+            const content = document.createElement('div');
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.innerHTML = text.replace(/\n/g, '<br>');
+            
+            const time = document.createElement('div');
+            time.className = 'time';
+            time.textContent = new Date().toLocaleTimeString('fa-IR', {hour: '2-digit', minute: '2-digit'});
+            
+            content.appendChild(bubble);
+            content.appendChild(time);
+            
+            messageDiv.appendChild(sender === 'bot' ? avatar : content);
+            messageDiv.appendChild(sender === 'bot' ? content : avatar);
+            
+            chatBox.appendChild(messageDiv);
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }
+        
+        function askQuestion(text) {
+            chatInput.value = text;
+            sendMessage();
+        }
+    </script>
+</body>
+</html>
