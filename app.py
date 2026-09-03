@@ -1,10 +1,26 @@
 from flask import Flask, render_template, request, redirect, url_for, session
-from datetime import date
+from datetime import date, timedelta
 import sqlite3
 import hashlib
+import uuid
+import random
+import os
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.secret_key = "mysecretkey123456789"
+app.permanent_session_lifetime = timedelta(days=365)
+
+# ====== تنظیمات آپلود عکس ======
+UPLOAD_FOLDER = 'static/profile_pics'
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# ایجاد پوشه اگر وجود ندارد
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def get_db():
     conn = sqlite3.connect('data.db')
@@ -18,8 +34,14 @@ def init_db():
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            username TEXT UNIQUE NOT NULL,
             email TEXT UNIQUE NOT NULL,
             password TEXT NOT NULL,
+            full_name TEXT,
+            profile_image TEXT DEFAULT 'default.png',
+            subscription_type TEXT DEFAULT 'trial',
+            subscription_end DATE,
+            invite_code TEXT UNIQUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -56,7 +78,7 @@ def init_db():
             user_id INTEGER NOT NULL,
             name TEXT NOT NULL,
             emoji TEXT DEFAULT '🔥',
-            color TEXT DEFAULT '#7C3AED',
+            color TEXT DEFAULT '#4A90D9',
             frequency TEXT DEFAULT 'daily',
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
@@ -72,6 +94,17 @@ def init_db():
         )
     ''')
     
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS invites (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            inviter_id INTEGER NOT NULL,
+            invited_email TEXT NOT NULL,
+            status TEXT DEFAULT 'pending',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (inviter_id) REFERENCES users (id)
+        )
+    ''')
+    
     conn.commit()
     conn.close()
 
@@ -80,6 +113,38 @@ init_db()
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
+def generate_invite_code():
+    return str(uuid.uuid4())[:8]
+
+def get_subscription_status(user_id):
+    conn = get_db()
+    user = conn.execute('SELECT subscription_type, subscription_end FROM users WHERE id = ?', (user_id,)).fetchone()
+    conn.close()
+    if not user:
+        return None
+    if user['subscription_end']:
+        end_date = date.fromisoformat(user['subscription_end'])
+        if end_date >= date.today():
+            return user['subscription_type']
+    return 'free'
+
+def is_premium(user_id):
+    status = get_subscription_status(user_id)
+    return status in ['trial', 'weekly', 'monthly', 'yearly']
+
+def get_motivational_message():
+    messages = [
+        "هر روز یک قدم به نسخه‌ی بهتر خودت نزدیک‌تر شو.",
+        "بزرگ‌ترین سفر با یک قدم شروع می‌شود.",
+        "امروز روز تغییر توست.",
+        "به خودت ایمان داشته باش، توانش را داری.",
+        "همین الان شروع کن، عالی خواهد شد.",
+        "هر روزت را با عشق شروع کن.",
+        "تو می‌تونی! فقط باور کن."
+    ]
+    return random.choice(messages)
+
+# ====== صفحه اصلی ======
 @app.route('/')
 def index():
     if 'user_id' not in session:
@@ -89,6 +154,10 @@ def index():
     today = date.today().isoformat()
     conn = get_db()
     cursor = conn.cursor()
+    
+    user = cursor.execute('SELECT username, full_name, profile_image FROM users WHERE id = ?', (user_id,)).fetchone()
+    username = user['username'] if user else 'کاربر'
+    profile_image = user['profile_image'] if user else 'default.png'
     
     tasks = cursor.execute('SELECT * FROM tasks WHERE user_id = ? AND date = ?', (user_id, today)).fetchall()
     tasks_count = len(tasks)
@@ -110,9 +179,15 @@ def index():
             'done': log is not None
         })
     
+    sub_info = cursor.execute('SELECT subscription_type, subscription_end FROM users WHERE id = ?', (user_id,)).fetchone()
+    is_premium_user = is_premium(user_id)
     conn.close()
     
     return render_template('index.html',
+                         username=username,
+                         profile_image=profile_image,
+                         welcome_message=f"سلام {username} عزیز! 🌸",
+                         motivational_message=get_motivational_message(),
                          tasks=tasks,
                          tasks_count=tasks_count,
                          done_count=done_count,
@@ -121,34 +196,57 @@ def index():
                          habits=habit_progress,
                          today=today,
                          total_habits=len(habits),
-                         done_habits=sum(1 for h in habit_progress if h['done']))
+                         done_habits=sum(1 for h in habit_progress if h['done']),
+                         is_premium=is_premium_user,
+                         subscription_type=sub_info['subscription_type'] if sub_info else 'free')
+
+# ====== ثبت‌نام ======
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
+        username = request.form['username']
         email = request.form['email']
         password = hash_password(request.form['password'])
+        full_name = request.form.get('full_name', '')
+        
         conn = get_db()
         try:
-            conn.execute('INSERT INTO users (email, password) VALUES (?, ?)', (email, password))
+            invite_code = generate_invite_code()
+            trial_end = date.today() + timedelta(days=5)
+            
+            conn.execute('''
+                INSERT INTO users (username, email, password, full_name, subscription_type, subscription_end, invite_code)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (username, email, password, full_name, 'trial', trial_end.isoformat(), invite_code))
+            
             conn.commit()
             conn.close()
             return redirect(url_for('login'))
         except sqlite3.IntegrityError:
             conn.close()
-            return "این ایمیل قبلاً ثبت شده است"
+            return "این نام کاربری یا ایمیل قبلاً ثبت شده است"
     return render_template('signup.html')
 
+# ====== ورود ======
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         email = request.form['email']
         password = hash_password(request.form['password'])
+        remember = request.form.get('remember')
+        
         conn = get_db()
         user = conn.execute('SELECT * FROM users WHERE email = ? AND password = ?', (email, password)).fetchone()
         conn.close()
+        
         if user:
             session['user_id'] = user['id']
             session['email'] = user['email']
+            session['username'] = user['username']
+            if remember:
+                session.permanent = True
+            else:
+                session.permanent = False
             return redirect(url_for('index'))
         else:
             return "ایمیل یا رمز عبور اشتباه است"
@@ -159,11 +257,152 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
+# ====== پروفایل با آپلود عکس ======
+@app.route('/profile', methods=['GET', 'POST'])
+def profile():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    conn = get_db()
+    user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+    
+    if request.method == 'POST':
+        full_name = request.form.get('full_name')
+        
+        if 'profile_image' in request.files:
+            file = request.files['profile_image']
+            if file and allowed_file(file.filename):
+                filename = secure_filename(f"{session['user_id']}_{file.filename}")
+                file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                conn.execute('UPDATE users SET profile_image = ? WHERE id = ?', (filename, session['user_id']))
+        
+        if full_name:
+            conn.execute('UPDATE users SET full_name = ? WHERE id = ?', (full_name, session['user_id']))
+        
+        conn.commit()
+        conn.close()
+        return redirect(url_for('profile'))
+    
+    conn.close()
+    return render_template('profile.html', user=user)
+
+@app.route('/subscription')
+def subscription():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    conn = get_db()
+    user = conn.execute('SELECT subscription_type, subscription_end FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+    conn.close()
+    return render_template('subscription.html', current=user['subscription_type'], end=user['subscription_end'])
+
+@app.route('/buy_subscription/<plan>')
+def buy_subscription(plan):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    plans = {'weekly': 7, 'monthly': 30, 'yearly': 365}
+    if plan not in plans:
+        return "طرح نامعتبر"
+    days = plans[plan]
+    new_end = date.today() + timedelta(days=days)
+    conn = get_db()
+    conn.execute('UPDATE users SET subscription_type = ?, subscription_end = ? WHERE id = ?', (plan, new_end.isoformat(), session['user_id']))
+    conn.commit()
+    conn.close()
+    return redirect(url_for('subscription'))
+
+@app.route('/invite')
+def invite():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    conn = get_db()
+    user = conn.execute('SELECT invite_code FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+    invites = conn.execute('SELECT * FROM invites WHERE inviter_id = ?', (session['user_id'],)).fetchall()
+    conn.close()
+    return render_template('invite.html', invite_code=user['invite_code'], invites=invites)
+
+@app.route('/meditation')
+def meditation():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    if not is_premium(session['user_id']):
+        return redirect(url_for('subscription'))
+    return render_template('meditation.html')
+
+@app.route('/study_techniques')
+def study_techniques():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    if not is_premium(session['user_id']):
+        return redirect(url_for('subscription'))
+    
+    techniques = [
+        {'id': 1, 'name': 'پومودورو', 'desc': '۲۵ دقیقه کار، ۵ دقیقه استراحت', 'full': 'تکنیک پومودورو یک روش مدیریت زمان است که توسط فرانچسکو سیریلو در دهه ۱۹۸۰ ابداع شد. در این روش، شما ۲۵ دقیقه به صورت متمرکز روی یک کار کار می‌کنید و سپس ۵ دقیقه استراحت می‌کنید. بعد از ۴ دوره، یک استراحت طولانی‌تر (۱۵-۳۰ دقیقه) انجام می‌دهید.'},
+        {'id': 2, 'name': 'تکنیک فاینمن', 'desc': 'یادگیری با آموزش به دیگران', 'full': 'ریچارد فاینمن، فیزیکدان برنده جایزه نوبل، معتقد بود بهترین راه برای یادگیری یک مطلب، آموزش آن به دیگران است. در این روش، شما مطلب را به زبانی ساده و روان توضیح می‌دهید تا مطمئن شوید خودتان کاملاً آن را درک کرده‌اید.'},
+        {'id': 3, 'name': '۵۰/۱۰', 'desc': '۵۰ دقیقه مطالعه، ۱۰ دقیقه استراحت', 'full': 'این روش مشابه پومودورو است اما با زمان‌های طولانی‌تر. ۵۰ دقیقه مطالعه متمرکز و ۱۰ دقیقه استراحت. مناسب برای افرادی که می‌توانند تمرکز طولانی‌تری داشته باشند.'},
+        {'id': 4, 'name': 'تکنیک ۲/۵/۷', 'desc': 'مرور در روزهای ۲، ۵ و ۷', 'full': 'این تکنیک بر اساس منحنی فراموشی ابینگهاوس طراحی شده است. شما یک مطلب را در روزهای ۲، ۵ و ۷ بعد از یادگیری مرور می‌کنید تا در حافظه بلندمدت تثبیت شود.'},
+        {'id': 5, 'name': 'نقشه ذهنی', 'desc': 'ایجاد نقشه برای درک بهتر مطالب', 'full': 'نقشه ذهنی یک روش گرافیکی برای سازماندهی اطلاعات است. شما یک موضوع اصلی را در مرکز قرار می‌دهید و شاخه‌های فرعی را به آن متصل می‌کنید. این روش به درک بهتر روابط بین مفاهیم کمک می‌کند.'},
+        {'id': 6, 'name': 'خواندن فعال', 'desc': 'یادداشت‌برداری و سوال پرسیدن هنگام مطالعه', 'full': 'در این روش، شما به جای خواندن منفعل، با متن درگیر می‌شوید. سوال می‌پرسید، یادداشت برمی‌دارید، خلاصه‌نویسی می‌کنید و نکات کلیدی را مشخص می‌کنید. این روش باعث درک عمیق‌تر مطالب می‌شود.'},
+        {'id': 7, 'name': 'تکنیک ۱۰۰۰ ساعت', 'desc': '۱۰۰۰ ساعت تمرکز روی یک مهارت', 'full': 'این تکنیک بر اساس قانون ۱۰۰۰۰ ساعت مالکوم گلدول طراحی شده است. اما نسخه ساده‌تر آن، ۱۰۰۰ ساعت تمرکز روی یک مهارت خاص است. با ۱۰۰۰ ساعت تمرین هدفمند، می‌توانید در هر مهارتی به سطح بالایی از تسلط برسید.'},
+    ]
+    
+    return render_template('study_techniques.html', techniques=techniques)
+
+@app.route('/technique/<int:tech_id>')
+def technique_detail(tech_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    if not is_premium(session['user_id']):
+        return redirect(url_for('subscription'))
+    
+    techniques = [
+        {'id': 1, 'name': 'پومودورو', 'desc': '۲۵ دقیقه کار، ۵ دقیقه استراحت', 'full': 'تکنیک پومودورو یک روش مدیریت زمان است که توسط فرانچسکو سیریلو در دهه ۱۹۸۰ ابداع شد. در این روش، شما ۲۵ دقیقه به صورت متمرکز روی یک کار کار می‌کنید و سپس ۵ دقیقه استراحت می‌کنید. بعد از ۴ دوره، یک استراحت طولانی‌تر (۱۵-۳۰ دقیقه) انجام می‌دهید.'},
+        {'id': 2, 'name': 'تکنیک فاینمن', 'desc': 'یادگیری با آموزش به دیگران', 'full': 'ریچارد فاینمن، فیزیکدان برنده جایزه نوبل، معتقد بود بهترین راه برای یادگیری یک مطلب، آموزش آن به دیگران است. در این روش، شما مطلب را به زبانی ساده و روان توضیح می‌دهید تا مطمئن شوید خودتان کاملاً آن را درک کرده‌اید.'},
+        {'id': 3, 'name': '۵۰/۱۰', 'desc': '۵۰ دقیقه مطالعه، ۱۰ دقیقه استراحت', 'full': 'این روش مشابه پومودورو است اما با زمان‌های طولانی‌تر. ۵۰ دقیقه مطالعه متمرکز و ۱۰ دقیقه استراحت. مناسب برای افرادی که می‌توانند تمرکز طولانی‌تری داشته باشند.'},
+        {'id': 4, 'name': 'تکنیک ۲/۵/۷', 'desc': 'مرور در روزهای ۲، ۵ و ۷', 'full': 'این تکنیک بر اساس منحنی فراموشی ابینگهاوس طراحی شده است. شما یک مطلب را در روزهای ۲، ۵ و ۷ بعد از یادگیری مرور می‌کنید تا در حافظه بلندمدت تثبیت شود.'},
+        {'id': 5, 'name': 'نقشه ذهنی', 'desc': 'ایجاد نقشه برای درک بهتر مطالب', 'full': 'نقشه ذهنی یک روش گرافیکی برای سازماندهی اطلاعات است. شما یک موضوع اصلی را در مرکز قرار می‌دهید و شاخه‌های فرعی را به آن متصل می‌کنید. این روش به درک بهتر روابط بین مفاهیم کمک می‌کند.'},
+        {'id': 6, 'name': 'خواندن فعال', 'desc': 'یادداشت‌برداری و سوال پرسیدن هنگام مطالعه', 'full': 'در این روش، شما به جای خواندن منفعل، با متن درگیر می‌شوید. سوال می‌پرسید، یادداشت برمی‌دارید، خلاصه‌نویسی می‌کنید و نکات کلیدی را مشخص می‌کنید. این روش باعث درک عمیق‌تر مطالب می‌شود.'},
+        {'id': 7, 'name': 'تکنیک ۱۰۰۰ ساعت', 'desc': '۱۰۰۰ ساعت تمرکز روی یک مهارت', 'full': 'این تکنیک بر اساس قانون ۱۰۰۰۰ ساعت مالکوم گلدول طراحی شده است. اما نسخه ساده‌تر آن، ۱۰۰۰ ساعت تمرکز روی یک مهارت خاص است. با ۱۰۰۰ ساعت تمرین هدفمند، می‌توانید در هر مهارتی به سطح بالایی از تسلط برسید.'},
+    ]
+    
+    tech = next((t for t in techniques if t['id'] == tech_id), None)
+    if not tech:
+        return "تکنیک پیدا نشد"
+    
+    return render_template('technique_detail.html', technique=tech)
+
+@app.route('/chatbot')
+def chatbot():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    if not is_premium(session['user_id']):
+        return redirect(url_for('subscription'))
+    return render_template('chatbot.html')
+
+@app.route('/journal')
+def journal():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    if not is_premium(session['user_id']):
+        return redirect(url_for('subscription'))
+    return render_template('journal.html')
+
+@app.route('/shopping_list')
+def shopping_list():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    return render_template('shopping_list.html')
+
+@app.route('/settings')
+def settings():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    return render_template('settings.html')
+
+# ====== وظایف، عادت‌ها، مالی ======
 @app.route('/add_task', methods=['POST'])
 def add_task():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    
     conn = get_db()
     conn.execute('INSERT INTO tasks (user_id, title, date, priority, category) VALUES (?, ?, ?, ?, ?)',
                  (session['user_id'], request.form['title'], request.form['date'], 
@@ -176,7 +415,6 @@ def add_task():
 def toggle_task(task_id):
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    
     conn = get_db()
     task = conn.execute('SELECT done FROM tasks WHERE id = ? AND user_id = ?', (task_id, session['user_id'])).fetchone()
     if task:
@@ -189,7 +427,6 @@ def toggle_task(task_id):
 def delete_task(task_id):
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    
     conn = get_db()
     conn.execute('DELETE FROM tasks WHERE id = ? AND user_id = ?', (task_id, session['user_id']))
     conn.commit()
@@ -200,11 +437,10 @@ def delete_task(task_id):
 def add_habit():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    
     conn = get_db()
     conn.execute('INSERT INTO habits (user_id, name, emoji, color, frequency) VALUES (?, ?, ?, ?, ?)',
                  (session['user_id'], request.form['name'], request.form.get('emoji', '🔥'),
-                  request.form.get('color', '#7C3AED'), request.form.get('frequency', 'daily')))
+                  request.form.get('color', '#4A90D9'), request.form.get('frequency', 'daily')))
     conn.commit()
     conn.close()
     return redirect(url_for('index'))
@@ -213,7 +449,6 @@ def add_habit():
 def toggle_habit(habit_id):
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    
     today = date.today().isoformat()
     conn = get_db()
     log = conn.execute('SELECT * FROM habit_logs WHERE habit_id = ? AND date = ?', (habit_id, today)).fetchone()
@@ -229,17 +464,16 @@ def toggle_habit(habit_id):
 def delete_habit(habit_id):
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    
     conn = get_db()
     conn.execute('DELETE FROM habits WHERE id = ? AND user_id = ?', (habit_id, session['user_id']))
     conn.commit()
     conn.close()
     return redirect(url_for('index'))
+
 @app.route('/add_transaction', methods=['POST'])
 def add_transaction():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    
     conn = get_db()
     conn.execute('INSERT INTO transactions (user_id, date, amount, type, category, description) VALUES (?, ?, ?, ?, ?, ?)',
                  (session['user_id'], request.form['date'], int(request.form['amount']),
@@ -252,7 +486,6 @@ def add_transaction():
 def delete_transaction(trans_id):
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    
     conn = get_db()
     conn.execute('DELETE FROM transactions WHERE id = ? AND user_id = ?', (trans_id, session['user_id']))
     conn.commit()
@@ -263,7 +496,6 @@ def delete_transaction(trans_id):
 def planner():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    
     today = date.today().isoformat()
     conn = get_db()
     tasks = conn.execute('SELECT * FROM tasks WHERE user_id = ? AND date = ?', (session['user_id'], today)).fetchall()
@@ -274,7 +506,6 @@ def planner():
 def finance():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    
     conn = get_db()
     transactions = conn.execute('SELECT * FROM transactions WHERE user_id = ? ORDER BY date DESC LIMIT 50', (session['user_id'],)).fetchall()
     total_income = sum(t['amount'] for t in transactions if t['type'] == 'income')
@@ -296,7 +527,6 @@ def finance():
 def habits_page():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    
     conn = get_db()
     habits = conn.execute('SELECT * FROM habits WHERE user_id = ?', (session['user_id'],)).fetchall()
     today = date.today().isoformat()
