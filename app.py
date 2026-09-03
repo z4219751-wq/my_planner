@@ -1,143 +1,300 @@
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, session
 from datetime import date
-import os
-from supabase import create_client, Client
+import sqlite3
+import hashlib
 
 app = Flask(name)
+app.secret_key = "mysecretkey123456789"
 
-# ====== اتصال به Supabase ======
-SUPABASE_URL = "https://yibdkjpgutekdmpjwocf.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlpYmRranBndXRla2RtcGp3b2NmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgzODE1MjgsImV4cCI6MjEwMzk1NzUyOH0.gZlFrB7UE6sfd90IL24mLfnghWC-Pp3c7rLftltl7iA"
+# ====== اتصال به دیتابیس ======
+def get_db():
+    conn = sqlite3.connect('data.db')
+    conn.row_factory = sqlite3.Row
+    return conn
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+def init_db():
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            password TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS tasks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            title TEXT NOT NULL,
+            date DATE NOT NULL,
+            priority INTEGER DEFAULT 3,
+            done BOOLEAN DEFAULT FALSE,
+            category TEXT DEFAULT 'شخصی',
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS transactions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            date DATE NOT NULL,
+            amount INTEGER NOT NULL,
+            type TEXT CHECK (type IN ('income', 'expense')),
+            category TEXT NOT NULL,
+            description TEXT,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS habits (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            name TEXT NOT NULL,
+            emoji TEXT DEFAULT '🔥',
+            color TEXT DEFAULT '#7C3AED',
+            frequency TEXT DEFAULT 'daily',
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS habit_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            habit_id INTEGER NOT NULL,
+            date DATE NOT NULL,
+            done BOOLEAN DEFAULT TRUE,
+            FOREIGN KEY (habit_id) REFERENCES habits (id) ON DELETE CASCADE
+        )
+    ''')
+    
+    conn.commit()
+    conn.close()
+
+init_db()
+
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
 
 # ====== صفحه اصلی ======
 @app.route('/')
 def index():
-    today = date.today().isoformat()
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
     
-    tasks_response = supabase.table('tasks').select('*').eq('date', today).execute()
-    tasks = tasks_response.data
+    user_id = session['user_id']
+    today = date.today().isoformat()
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    tasks = cursor.execute('SELECT * FROM tasks WHERE user_id = ? AND date = ?', (user_id, today)).fetchall()
     tasks_count = len(tasks)
-    done_count = sum(1 for t in tasks if t.get('done', False))
+    done_count = sum(1 for t in tasks if t['done'])
     completion = int((done_count / tasks_count * 100)) if tasks_count > 0 else 0
     
-    expense_response = supabase.table('transactions').select('*').eq('date', today).eq('type', 'expense').execute()
-    today_expense = sum(t['amount'] for t in expense_response.data)
+    expense = cursor.execute('SELECT SUM(amount) as total FROM transactions WHERE user_id = ? AND date = ? AND type = "expense"', (user_id, today)).fetchone()
+    today_expense = expense['total'] or 0
     
-    habits_response = supabase.table('habits').select('*').execute()
-    habits = habits_response.data
+    habits = cursor.execute('SELECT * FROM habits WHERE user_id = ?', (user_id,)).fetchall()
     habit_progress = []
     for h in habits:
-        log_response = supabase.table('habit_logs').select('*').eq('habit_id', h['id']).eq('date', today).execute()
+        log = cursor.execute('SELECT * FROM habit_logs WHERE habit_id = ? AND date = ?', (h['id'], today)).fetchone()
         habit_progress.append({
             'id': h['id'],
             'name': h['name'],
-            'emoji': h.get('emoji', '🔥'),
-            'color': h.get('color', '#7C3AED'),
-            'done': len(log_response.data) > 0
+            'emoji': h['emoji'],
+            'color': h['color'],
+            'done': log is not None
         })
     
+    conn.close()
+    
     return render_template('index.html',
-                         users=3000,
                          tasks=tasks,
                          tasks_count=tasks_count,
                          done_count=done_count,
                          completion=completion,
-                         today_expense=today_expense,
+today_expense=today_expense,
                          habits=habit_progress,
                          today=today,
                          total_habits=len(habits),
                          done_habits=sum(1 for h in habit_progress if h['done']))
 
+# ====== ثبت‌نام ======
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if request.method == 'POST':
+        email = request.form['email']
+        password = hash_password(request.form['password'])
+        conn = get_db()
+        try:
+            conn.execute('INSERT INTO users (email, password) VALUES (?, ?)', (email, password))
+            conn.commit()
+            conn.close()
+            return redirect(url_for('login'))
+        except sqlite3.IntegrityError:
+            conn.close()
+            return "این ایمیل قبلاً ثبت شده است"
+    return render_template('signup.html')
+
+# ====== ورود ======
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form['email']
+        password = hash_password(request.form['password'])
+        conn = get_db()
+        user = conn.execute('SELECT * FROM users WHERE email = ? AND password = ?', (email, password)).fetchone()
+        conn.close()
+        if user:
+            session['user_id'] = user['id']
+            session['email'] = user['email']
+            return redirect(url_for('index'))
+        else:
+            return "ایمیل یا رمز عبور اشتباه است"
+    return render_template('login.html')
+
+# ====== خروج ======
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
+
 # ====== وظایف ======
 @app.route('/add_task', methods=['POST'])
 def add_task():
-    new_task = {
-        'title': request.form['title'],
-        'date': request.form['date'],
-        'priority': int(request.form.get('priority', 3)),
-        'done': False,
-        'category': request.form.get('category', 'شخصی')
-    }
-    supabase.table('tasks').insert(new_task).execute()
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    conn = get_db()
+    conn.execute('INSERT INTO tasks (user_id, title, date, priority, category) VALUES (?, ?, ?, ?, ?)',
+                 (session['user_id'], request.form['title'], request.form['date'], 
+                  int(request.form.get('priority', 3)), request.form.get('category', 'شخصی')))
+    conn.commit()
+    conn.close()
     return redirect(url_for('index'))
 
 @app.route('/toggle_task/<int:task_id>')
 def toggle_task(task_id):
-    task = supabase.table('tasks').select('*').eq('id', task_id).execute()
-    if task.data:
-        current = task.data[0]
-        supabase.table('tasks').update({'done': not current['done']}).eq('id', task_id).execute()
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    conn = get_db()
+    task = conn.execute('SELECT done FROM tasks WHERE id = ? AND user_id = ?', (task_id, session['user_id'])).fetchone()
+    if task:
+        conn.execute('UPDATE tasks SET done = ? WHERE id = ?', (not task['done'], task_id))
+        conn.commit()
+    conn.close()
     return redirect(url_for('index'))
 
 @app.route('/delete_task/<int:task_id>')
 def delete_task(task_id):
-    supabase.table('tasks').delete().eq('id', task_id).execute()
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    conn = get_db()
+    conn.execute('DELETE FROM tasks WHERE id = ? AND user_id = ?', (task_id, session['user_id']))
+    conn.commit()
+    conn.close()
     return redirect(url_for('index'))
 
 # ====== عادت‌ها ======
 @app.route('/add_habit', methods=['POST'])
 def add_habit():
-    new_habit = {
-        'name': request.form['name'],
-        'emoji': request.form.get('emoji', '🔥'),
-        'color': request.form.get('color', '#7C3AED'),
-        'frequency': request.form.get('frequency', 'daily')
-    }
-    supabase.table('habits').insert(new_habit).execute()
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    conn = get_db()
+    conn.execute('INSERT INTO habits (user_id, name, emoji, color, frequency) VALUES (?, ?, ?, ?, ?)',
+                 (session['user_id'], request.form['name'], request.form.get('emoji', '🔥'),
+                  request.form.get('color', '#7C3AED'), request.form.get('frequency', 'daily')))
+    conn.commit()
+    conn.close()
     return redirect(url_for('index'))
 
 @app.route('/toggle_habit/<int:habit_id>')
 def toggle_habit(habit_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
     today = date.today().isoformat()
-    existing = supabase.table('habit_logs').select('*').eq('habit_id', habit_id).eq('date', today).execute()
-    if existing.data:
-        supabase.table('habit_logs').delete().eq('habit_id', habit_id).eq('date', today).execute()
+    conn = get_db()
+    log = conn.execute('SELECT * FROM habit_logs WHERE habit_id = ? AND date = ?', (habit_id, today)).fetchone()
+if log:
+        conn.execute('DELETE FROM habit_logs WHERE habit_id = ? AND date = ?', (habit_id, today))
     else:
-        supabase.table('habit_logs').insert({'habit_id': habit_id, 'date': today}).execute()
+        conn.execute('INSERT INTO habit_logs (habit_id, date) VALUES (?, ?)', (habit_id, today))
+    conn.commit()
+    conn.close()
     return redirect(url_for('index'))
+
 @app.route('/delete_habit/<int:habit_id>')
 def delete_habit(habit_id):
-    supabase.table('habit_logs').delete().eq('habit_id', habit_id).execute()
-    supabase.table('habits').delete().eq('id', habit_id).execute()
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    conn = get_db()
+    conn.execute('DELETE FROM habits WHERE id = ? AND user_id = ?', (habit_id, session['user_id']))
+    conn.commit()
+    conn.close()
     return redirect(url_for('index'))
 
 # ====== مالی ======
 @app.route('/add_transaction', methods=['POST'])
 def add_transaction():
-    new_trans = {
-        'date': request.form['date'],
-        'amount': int(request.form['amount']),
-        'type': request.form['type'],
-        'category': request.form['category'],
-        'description': request.form.get('description', '')
-    }
-    supabase.table('transactions').insert(new_trans).execute()
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    conn = get_db()
+    conn.execute('INSERT INTO transactions (user_id, date, amount, type, category, description) VALUES (?, ?, ?, ?, ?, ?)',
+                 (session['user_id'], request.form['date'], int(request.form['amount']),
+                  request.form['type'], request.form['category'], request.form.get('description', '')))
+    conn.commit()
+    conn.close()
     return redirect(url_for('finance'))
 
 @app.route('/delete_transaction/<int:trans_id>')
 def delete_transaction(trans_id):
-    supabase.table('transactions').delete().eq('id', trans_id).execute()
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    conn = get_db()
+    conn.execute('DELETE FROM transactions WHERE id = ? AND user_id = ?', (trans_id, session['user_id']))
+    conn.commit()
+    conn.close()
     return redirect(url_for('finance'))
 
 # ====== صفحات ======
 @app.route('/planner')
 def planner():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
     today = date.today().isoformat()
-    tasks = supabase.table('tasks').select('*').eq('date', today).execute()
-    return render_template('planner.html', tasks=tasks.data, today=today)
+    conn = get_db()
+    tasks = conn.execute('SELECT * FROM tasks WHERE user_id = ? AND date = ?', (session['user_id'], today)).fetchall()
+    conn.close()
+    return render_template('planner.html', tasks=tasks, today=today)
 
 @app.route('/finance')
 def finance():
-    trans = supabase.table('transactions').select('*').order('date', desc=True).limit(50).execute()
-    transactions = trans.data
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    conn = get_db()
+    transactions = conn.execute('SELECT * FROM transactions WHERE user_id = ? ORDER BY date DESC LIMIT 50', (session['user_id'],)).fetchall()
     total_income = sum(t['amount'] for t in transactions if t['type'] == 'income')
     total_expense = sum(t['amount'] for t in transactions if t['type'] == 'expense')
     categories = {}
     for t in transactions:
         if t['type'] == 'expense':
             categories[t['category']] = categories.get(t['category'], 0) + t['amount']
+    conn.close()
     return render_template('finance.html',
                          transactions=transactions,
                          total_income=total_income,
@@ -148,13 +305,18 @@ def finance():
 
 @app.route('/habits')
 def habits_page():
-    habits = supabase.table('habits').select('*').execute().data
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    conn = get_db()
+    habits = conn.execute('SELECT * FROM habits WHERE user_id = ?', (session['user_id'],)).fetchall()
     today = date.today().isoformat()
     for h in habits:
-        logs = supabase.table('habit_logs').select('*').eq('habit_id', h['id']).execute().data
+        logs = conn.execute('SELECT * FROM habit_logs WHERE habit_id = ?', (h['id'],)).fetchall()
         h['total_days'] = len(logs)
-        h['last_7'] = sum(1 for l in logs if l.get('date', '') >= date.today().isoformat())
-        h['today_done'] = any(l.get('date') == today for l in logs)
+        h['last_7'] = sum(1 for l in logs if l['date'] >= date.today().isoformat())
+        h['today_done'] = any(l['date'] == today for l in logs)
+    conn.close()
     return render_template('habits.html', habits=habits, today=today)
 
 if name == 'main':
