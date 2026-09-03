@@ -13,13 +13,20 @@
             padding: 20px;
         }
         .container { max-width: 600px; margin: 0 auto; }
-        
         .card {
             background: white;
             border-radius: 24px;
             padding: 30px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
             text-align: center;
+        }
+        .card .back {
+            display: inline-block;
+            color: #4A90D9;
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 16px;
+            text-align: right;
         }
         .card h1 { color: #1a2a3a; margin-bottom: 8px; }
         .card .sub { color: #6b7f94; margin-bottom: 24px; }
@@ -30,7 +37,6 @@
             border-radius: 16px;
             padding: 20px;
             margin: 16px 0;
-            direction: ltr;
             font-size: 18px;
             color: #1a2a3a;
             word-break: break-all;
@@ -38,28 +44,9 @@
             align-items: center;
             justify-content: space-between;
             gap: 12px;
+            flex-wrap: wrap;
         }
-        .invite-box .code {
-            font-weight: 600;
-            color: #4A90D9;
-        }
-        .btn {
-            background: linear-gradient(135deg, #4A90D9, #5BA3E6);
-            color: white;
-            border: none;
-            padding: 10px 24px;
-            border-radius: 12px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 600;
-            transition: 0.3s;
-        }
-        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(74, 144, 217, 0.4); }
-        .btn-secondary {
-            background: #e8f0fe;
-            color: #4A90D9;
-        }
-        .btn-secondary:hover { background: #d4e2f7; }
+        .invite-box .code { font-weight: 700; color: #4A90D9; font-size: 20px; }
         .btn-copy {
             background: #27AE60;
             color: white;
@@ -71,6 +58,17 @@
             transition: 0.3s;
         }
         .btn-copy:hover { background: #219653; }
+        .btn {
+            background: linear-gradient(135deg, #4A90D9, #5BA3E6);
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: 0.3s;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(74, 144, 217, 0.4); }
         
         .reward-box {
             background: #d5f5e3;
@@ -81,10 +79,7 @@
         }
         .reward-box .highlight { color: #27AE60; font-weight: 700; }
         
-        .invites-list {
-            margin-top: 20px;
-            text-align: right;
-        }
+        .invites-list { margin-top: 20px; text-align: right; }
         .invites-list h3 { color: #1a2a3a; margin-bottom: 12px; }
         .invite-item {
             display: flex;
@@ -92,7 +87,6 @@
             padding: 10px 0;
             border-bottom: 1px solid #eef3f8;
         }
-        .invite-item .email { color: #1a2a3a; }
         .invite-item .status {
             font-size: 13px;
             padding: 2px 12px;
@@ -100,89 +94,62 @@
         }
         .status-pending { background: #fde8e8; color: #e74c3c; }
         .status-accepted { background: #d5f5e3; color: #27AE60; }
-        
-        .nav-back {
-            display: inline-block;
-            margin-bottom: 20px;
-            color: #4A90D9;
-            text-decoration: none;
-            font-weight: 600;
-        }
-        .nav-back:hover { text-decoration: underline; }
+        .empty-state { color: #9aafc4; padding: 20px 0; }
     </style>
 </head>
 <body>
     <div class="container">
-        <a href="/" class="nav-back">← بازگشت به خانه</a>
-        
         <div class="card">
+            <a href="/" class="back">← بازگشت به خانه</a>
             <h1>🤝 دعوت از دوستان</h1>
-            <p class="sub">هر دوست رو دعوت کن، ۵ روز اشتراک رایگان بگیر! 🎁</p>
+            <p class="sub">هر دوست رو دعوت کن، <strong>۵ روز اشتراک رایگان</strong> بگیر! 🎁</p>
             
-            <!-- کد دعوت -->
             <div class="invite-box">
                 <span class="code">{{ invite_code }}</span>
                 <button class="btn-copy" onclick="copyCode()">📋 کپی</button>
             </div>
             
-            <!-- لینک دعوت -->
-            <div class="invite-box" style="direction: ltr; font-size: 14px; flex-wrap: wrap;">
-                <span>{{ request.host_url }}invite/{{ invite_code }}</span>
+            <div class="invite-box" style="direction: ltr; font-size: 14px;">
+                <span>{{ request.host_url }}signup_with_invite/{{ invite_code }}</span>
                 <button class="btn-copy" onclick="copyLink()">📋 کپی</button>
             </div>
             
-            <!-- پاداش -->
             <div class="reward-box">
                 🎁 با هر دعوت، <span class="highlight">۵ روز اشتراک رایگان</span> به شما و دوستتان تعلق می‌گیرد!
             </div>
             
-            <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
-                <button class="btn" onclick="shareInvite()">📤 اشتراک‌گذاری</button>
-                <a href="/subscription" class="btn btn-secondary">⭐ مدیریت اشتراک</a>
-            </div>
+            <button class="btn" onclick="shareInvite()">📤 اشتراک‌گذاری</button>
             
-            <!-- لیست دعوت‌ها -->
             <div class="invites-list">
                 <h3>📋 لیست دعوت‌ها</h3>
                 {% if invites %}
                     {% for invite in invites %}
                     <div class="invite-item">
-                        <span class="email">{{ invite.invited_email }}</span>
+                        <span>{{ invite.invited_email }}</span>
                         <span class="status {% if invite.status == 'accepted' %}status-accepted{% else %}status-pending{% endif %}">
                             {% if invite.status == 'accepted' %}✅ پذیرفته شده{% else %}⏳ در انتظار{% endif %}
                         </span>
                     </div>
                     {% endfor %}
                 {% else %}
-                    <p style="color: #9aafc4; text-align: center; padding: 20px 0;">هنوز کسی را دعوت نکرده‌اید</p>
+                    <div class="empty-state">هنوز کسی را دعوت نکرده‌اید</div>
                 {% endif %}
             </div>
         </div>
     </div>
-    
     <script>
         function copyCode() {
             const code = document.querySelector('.invite-box .code').textContent;
-            navigator.clipboard.writeText(code).then(() => {
-                alert('✅ کد دعوت کپی شد!');
-            });
+            navigator.clipboard.writeText(code).then(() => alert('✅ کد دعوت کپی شد!'));
         }
-        
         function copyLink() {
             const link = document.querySelector('.invite-box:last-child span').textContent;
-            navigator.clipboard.writeText(link).then(() => {
-                alert('✅ لینک دعوت کپی شد!');
-            });
+            navigator.clipboard.writeText(link).then(() => alert('✅ لینک دعوت کپی شد!'));
         }
-        
         function shareInvite() {
             const link = document.querySelector('.invite-box:last-child span').textContent;
             if (navigator.share) {
-                navigator.share({
-                    title: 'My Planner',
-                    text: 'به My Planner بپیوند! 🎁 ۵ روز اشتراک رایگان هدیه بگیر!',
-                    url: link
-                });
+                navigator.share({ title: 'My Planner', text: 'به My Planner بپیوند! 🎁 ۵ روز اشتراک رایگان هدیه بگیر!', url: link });
             } else {
                 copyLink();
             }

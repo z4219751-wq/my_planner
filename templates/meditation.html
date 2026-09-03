@@ -6,20 +6,40 @@
     <title>مدیتیشن | My Planner</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(145deg, #f0f7ff 0%, #e3edfa 100%); min-height: 100vh; padding: 20px; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(145deg, #f0f7ff 0%, #e3edfa 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
         .container { max-width: 600px; margin: 0 auto; }
-        .card { background: white; border-radius: 24px; padding: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .card .back { display: inline-block; color: #4A90D9; text-decoration: none; font-weight: 600; margin-bottom: 16px; }
+        .card {
+            background: white;
+            border-radius: 24px;
+            padding: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .card .back {
+            display: inline-block;
+            color: #4A90D9;
+            text-decoration: none;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
         .card h1 { color: #1a2a3a; font-size: 28px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
         .card .sub { color: #6b7f94; font-size: 16px; margin-bottom: 20px; }
+        
         .music-player { background: #f8faff; border-radius: 16px; padding: 20px; text-align: center; margin: 16px 0; }
-        .music-player audio { width: 100%; margin: 12px 0; }
+        .music-player audio { width: 100%; margin: 12px 0; border-radius: 8px; }
+        
         .upload-box { border: 2px dashed #4A90D9; border-radius: 16px; padding: 20px; text-align: center; margin: 16px 0; transition: 0.3s; }
         .upload-box:hover { background: #f0f7ff; }
         .upload-box input[type="file"] { display: block; margin: 12px auto; }
+        
         .btn { background: linear-gradient(135deg, #4A90D9, #5BA3E6); color: white; border: none; padding: 10px 24px; border-radius: 12px; cursor: pointer; font-size: 14px; font-weight: 600; transition: 0.3s; }
         .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(74, 144, 217, 0.4); }
         .btn-secondary { background: #e8f0fe; color: #4A90D9; }
+        
         .timer-section { margin: 16px 0; text-align: center; }
         .timer-section .time { font-size: 48px; font-weight: 700; color: #4A90D9; }
         .timer-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-top: 12px; }
@@ -32,14 +52,20 @@
             <a href="/" class="back">← بازگشت به خانه</a>
             <h1>🧘 مدیتیشن و آرامش</h1>
             <p class="sub">آرامش ذهن، تمرکز و انرژی مثبت</p>
+            
             <div class="music-player">
                 <h3>🎵 موسیقی مدیتیشن</h3>
-                {% if music_file %}
-                    <audio controls><source src="/static/music/{{ music_file }}" type="audio/mpeg">مرورگر شما پخش موسیقی را پشتیبانی نمی‌کند.</audio>
+                {% if music_file and music_file != '' %}
+                    <p style="margin-top: 8px; color: #27AE60;">✅ آهنگ شخصی شما:</p>
+                    <audio controls style="width:100%; margin-top:8px;">
+                        <source src="/static/music/{{ music_file }}" type="audio/mpeg">
+                        مرورگر شما پخش موسیقی را پشتیبانی نمی‌کند.
+                    </audio>
                 {% else %}
                     <div class="empty-state">هیچ آهنگی آپلود نشده است</div>
                 {% endif %}
             </div>
+            
             <div class="upload-box">
                 <h4>📤 آپلود آهنگ دلخواه</h4>
                 <form action="/upload_music" method="POST" enctype="multipart/form-data">
@@ -48,6 +74,7 @@
                 </form>
                 <p style="font-size: 12px; color: #9aafc4; margin-top: 8px;">فایل‌های MP3, WAV, OGG پشتیبانی می‌شوند</p>
             </div>
+            
             <div class="timer-section">
                 <h3>⏱️ تایمر مدیتیشن</h3>
                 <div class="time" id="timerDisplay">05:00</div>
@@ -59,6 +86,7 @@
             </div>
         </div>
     </div>
+    
     <script>
         let timer; let timeLeft = 300; let isRunning = false; const timerDisplay = document.getElementById('timerDisplay');
         function updateDisplay() { const minutes = Math.floor(timeLeft / 60); const seconds = timeLeft % 60; timerDisplay.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`; }
