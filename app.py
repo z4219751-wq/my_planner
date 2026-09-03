@@ -12,7 +12,7 @@ app = Flask(__name__)
 app.secret_key = "mysecretkey123456789"
 app.permanent_session_lifetime = timedelta(days=365)
 
-# ====== تنظیمات آپلود عکس و موسیقی ======
+# ====== تنظیمات آپلود ======
 UPLOAD_FOLDER = 'static/profile_pics'
 MUSIC_FOLDER = 'static/music'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -28,7 +28,6 @@ def allowed_file(filename):
 def allowed_music_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_MUSIC_EXTENSIONS
 
-# ====== بارگذاری فایل‌های ترجمه ======
 def load_translations(lang):
     try:
         with open(f'locales/{lang}.json', 'r', encoding='utf-8') as f:
@@ -193,7 +192,6 @@ def get_user_language(user_id):
     conn.close()
     return user['language'] if user else 'fa'
 
-# ====== اضافه کردن درس‌های نمونه ======
 def add_sample_lessons():
     conn = get_db()
     cursor = conn.cursor()
@@ -232,8 +230,6 @@ def add_sample_lessons():
     conn.close()
 
 add_sample_lessons()
-
-# ======================== صفحات اصلی ========================
 
 @app.route('/')
 def index():
@@ -294,8 +290,6 @@ def index():
                          translations=translations,
                          current_lang=user_lang)
 
-# ======================== تنظیمات زبان ========================
-
 @app.route('/set_language/<lang>')
 def set_language(lang):
     if 'user_id' not in session:
@@ -307,8 +301,6 @@ def set_language(lang):
     conn.commit()
     conn.close()
     return redirect(request.referrer or url_for('index'))
-
-# ======================== احراز هویت ========================
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -357,8 +349,6 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
-# ======================== پروفایل ========================
-
 @app.route('/profile', methods=['GET', 'POST'])
 def profile():
     if 'user_id' not in session:
@@ -380,8 +370,6 @@ def profile():
         return redirect(url_for('profile'))
     conn.close()
     return render_template('profile.html', user=user)
-
-# ======================== اشتراک ========================
 
 @app.route('/subscription')
 def subscription():
@@ -407,8 +395,6 @@ def buy_subscription(plan):
     conn.close()
     return redirect(url_for('subscription'))
 
-# ======================== دعوت از دوستان ========================
-
 @app.route('/invite')
 def invite():
     if 'user_id' not in session:
@@ -418,8 +404,6 @@ def invite():
     invites = conn.execute('SELECT * FROM invites WHERE inviter_id = ?', (session['user_id'],)).fetchall()
     conn.close()
     return render_template('invite.html', invite_code=user['invite_code'], invites=invites)
-
-# ======================== مطالعه ========================
 
 @app.route('/study_techniques')
 def study_techniques():
@@ -479,8 +463,6 @@ def technique_detail(tech_id):
         return "تکنیک پیدا نشد"
     return render_template('technique_detail.html', technique=tech)
 
-# ======================== چت‌بات ========================
-
 @app.route('/chatbot')
 def chatbot():
     if 'user_id' not in session:
@@ -488,8 +470,6 @@ def chatbot():
     if not is_premium(session['user_id']):
         return redirect(url_for('subscription'))
     return render_template('chatbot.html')
-
-# ======================== ژورنال ========================
 
 @app.route('/journal', methods=['GET', 'POST'])
 def journal():
@@ -522,8 +502,6 @@ def journal():
     
     return render_template('journal.html', entries=entries, today=today)
 
-# ======================== آموزش زبان ========================
-
 @app.route('/language/<lang>')
 def language_home(lang):
     if 'user_id' not in session:
@@ -554,8 +532,6 @@ def lesson_detail(lesson_id):
         return "درس پیدا نشد"
     
     return render_template('lesson_detail.html', lesson=lesson)
-
-# ======================== مدیتیشن ========================
 
 @app.route('/meditation')
 def meditation():
@@ -599,8 +575,6 @@ def upload_music():
     
     return "فرمت فایل پشتیبانی نمی‌شود. فقط MP3, WAV, OGG"
 
-# ======================== سایر صفحات ========================
-
 @app.route('/shopping_list')
 def shopping_list():
     if 'user_id' not in session:
@@ -618,8 +592,6 @@ def settings():
     current_lang = user['language'] if user else 'fa'
     
     return render_template('settings.html', current_lang=current_lang)
-
-# ======================== وظایف ========================
 
 @app.route('/add_task', methods=['POST'])
 def add_task():
@@ -654,8 +626,6 @@ def delete_task(task_id):
     conn.commit()
     conn.close()
     return redirect(url_for('index'))
-
-# ======================== عادت‌ها ========================
 
 @app.route('/add_habit', methods=['POST'])
 def add_habit():
@@ -694,8 +664,6 @@ def delete_habit(habit_id):
     conn.close()
     return redirect(url_for('index'))
 
-# ======================== مالی ========================
-
 @app.route('/add_transaction', methods=['POST'])
 def add_transaction():
     if 'user_id' not in session:
@@ -717,8 +685,6 @@ def delete_transaction(trans_id):
     conn.commit()
     conn.close()
     return redirect(url_for('finance'))
-
-# ======================== صفحات نمایش ========================
 
 @app.route('/planner')
 def planner():
