@@ -55,10 +55,10 @@ def init_db():
             full_name TEXT,
             profile_image TEXT DEFAULT 'default.png',
             language TEXT DEFAULT 'fa',
+            meditation_music TEXT DEFAULT '',
             subscription_type TEXT DEFAULT 'trial',
             subscription_end DATE,
             invite_code TEXT UNIQUE,
-            meditation_music TEXT DEFAULT '',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
