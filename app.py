@@ -12,7 +12,6 @@ app = Flask(__name__)
 app.secret_key = "mysecretkey123456789"
 app.permanent_session_lifetime = timedelta(days=365)
 
-# ====== تنظیمات آپلود ======
 UPLOAD_FOLDER = 'static/profile_pics'
 MUSIC_FOLDER = 'static/music'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
