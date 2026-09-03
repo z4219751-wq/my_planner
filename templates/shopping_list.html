@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>پلنر روزانه | My Planner</title>
+    <title>لیست خرید | My Planner</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -64,50 +64,30 @@
         }
         .section h2 { font-size: 19px; margin-bottom: 16px; }
 
-        .task-item {
+        .shopping-item {
             display: flex;
             align-items: center;
-            padding: 12px 0;
+            padding: 10px 0;
             border-bottom: 1px solid #eef3f8;
             gap: 12px;
         }
-        .task-item:last-child { border-bottom: none; }
-        .task-check {
-            width: 24px;
-            height: 24px;
-            border-radius: 50%;
-            border: 2px solid #dce5ef;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            text-decoration: none;
-            font-size: 14px;
-            transition: 0.3s;
-        }
-        .task-check.done { background: #27AE60; border-color: #27AE60; color: white; }
-        .task-title { flex: 1; font-size: 15px; }
-        .task-title.done { text-decoration: line-through; color: #9aafc4; }
-        .task-priority {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            flex-shrink: 0;
-        }
-        .task-category {
+        .shopping-item:last-child { border-bottom: none; }
+        .shopping-item .name { flex: 1; font-size: 15px; }
+        .shopping-item .category {
             font-size: 12px;
             color: #6b7f94;
             background: #eef3f8;
             padding: 2px 12px;
             border-radius: 12px;
         }
-        .task-delete {
+        .shopping-item .delete {
             color: #e74c3c;
             text-decoration: none;
             font-size: 16px;
             opacity: 0.4;
             transition: 0.3s;
         }
-        .task-delete:hover { opacity: 1; }
+        .shopping-item .delete:hover { opacity: 1; }
 
         .form-row {
             display: flex;
@@ -146,49 +126,32 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>📅 پلنر روزانه</h1>
-            <div class="sub">هر روزت را برنامه‌ریزی کن، بهتر زندگی کن</div>
+            <h1>🛒 لیست خرید</h1>
+            <div class="sub">خریدهای خود را مدیریت کنید</div>
         </div>
 
         <div class="nav-tabs">
             <a href="/">🏠 خانه</a>
-            <a href="/planner" class="active">📅 پلنر</a>
+            <a href="/planner">📅 پلنر</a>
             <a href="/finance">💰 مالی</a>
             <a href="/habits">🔥 عادت‌ها</a>
-            <a href="/shopping_list">🛒 خرید</a>
+            <a href="/shopping_list" class="active">🛒 خرید</a>
             <a href="/profile">👤 پروفایل</a>
         </div>
 
         <div class="section">
-            <h2>📋 وظایف امروز - {{ today }}</h2>
-            {% if tasks %}
-                {% for task in tasks %}
-                <div class="task-item">
-                    <a href="/toggle_task/{{ task.id }}" class="task-check {% if task.done %}done{% endif %}">
-                        {% if task.done %}✓{% endif %}
-                    </a>
-                    <span class="task-priority" style="background: {% if task.priority <= 2 %}#e74c3c{% elif task.priority <= 3 %}#F5A623{% else %}#4A90D9{% endif %};"></span>
-                    <span class="task-title {% if task.done %}done{% endif %}">{{ task.title }}</span>
-                    <span class="task-category">{{ task.category }}</span>
-                    <a href="/delete_task/{{ task.id }}" class="task-delete">✕</a>
-                </div>
-                {% endfor %}
-            {% else %}
-                <div class="empty-state">✨ امروز هیچ وظیفه‌ای ثبت نشده</div>
-            {% endif %}
+            <h2>📋 لیست خرید</h2>
+            <div class="empty-state">🛒 لیست خرید شما خالی است</div>
+            <!-- بعداً با دیتا پر میشه -->
 
-            <form action="/add_task" method="POST" class="form-row">
-                <input type="text" name="title" placeholder="وظیفه جدید..." required>
-                <input type="date" name="date" value="{{ today }}">
-                <select name="priority">
-                    <option value="1">🔴 مهم</option>
-                    <option value="3" selected>🟡 معمولی</option>
-                    <option value="5">🟢 کم‌اهمیت</option>
-                </select>
+            <form action="/add_shopping_item" method="POST" class="form-row">
+                <input type="text" name="item_name" placeholder="نام کالا..." required>
                 <select name="category">
-                    <option value="شخصی">👤 شخصی</option>
-                    <option value="کار">💼 کار</option>
-                    <option value="سلامتی">💪 سلامتی</option>
+                    <option value="خوراک">🍽 خوراک</option>
+                    <option value="پوشاک">👗 پوشاک</option>
+                    <option value="الکترونیک">📱 الکترونیک</option>
+                    <option value="خانه">🏠 خانه</option>
+                    <option value="سایر">📦 سایر</option>
                 </select>
                 <button type="submit" class="btn">➕ افزودن</button>
             </form>

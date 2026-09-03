@@ -12,11 +12,21 @@ app = Flask(__name__)
 app.secret_key = "mysecretkey123456789"
 app.permanent_session_lifetime = timedelta(days=365)
 
-# ====== تنظیمات آپلود عکس ======
+# ====== تنظیمات آپلود عکس و موسیقی ======
 UPLOAD_FOLDER = 'static/profile_pics'
+MUSIC_FOLDER = 'static/music'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+ALLOWED_MUSIC_EXTENSIONS = {'mp3', 'wav', 'ogg'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MUSIC_FOLDER'] = MUSIC_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+os.makedirs(MUSIC_FOLDER, exist_ok=True)
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def allowed_music_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_MUSIC_EXTENSIONS
 
 # ====== بارگذاری فایل‌های ترجمه ======
 def load_translations(lang):
@@ -26,9 +36,6 @@ def load_translations(lang):
     except:
         with open('locales/fa.json', 'r', encoding='utf-8') as f:
             return json.load(f)
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def get_db():
     conn = sqlite3.connect('data.db')
@@ -51,6 +58,7 @@ def init_db():
             subscription_type TEXT DEFAULT 'trial',
             subscription_end DATE,
             invite_code TEXT UNIQUE,
+            meditation_music TEXT DEFAULT '',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -547,7 +555,7 @@ def lesson_detail(lesson_id):
     
     return render_template('lesson_detail.html', lesson=lesson)
 
-# ======================== سایر صفحات ========================
+# ======================== مدیتیشن ========================
 
 @app.route('/meditation')
 def meditation():
@@ -555,7 +563,43 @@ def meditation():
         return redirect(url_for('login'))
     if not is_premium(session['user_id']):
         return redirect(url_for('subscription'))
-    return render_template('meditation.html')
+    
+    conn = get_db()
+    user = conn.execute('SELECT meditation_music FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+    conn.close()
+    
+    music_file = user['meditation_music'] if user and user['meditation_music'] else ''
+    
+    return render_template('meditation.html', music_file=music_file)
+
+@app.route('/upload_music', methods=['POST'])
+def upload_music():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    if not is_premium(session['user_id']):
+        return redirect(url_for('subscription'))
+    
+    if 'music_file' not in request.files:
+        return "هیچ فایلی انتخاب نشده است"
+    
+    file = request.files['music_file']
+    if file.filename == '':
+        return "هیچ فایلی انتخاب نشده است"
+    
+    if file and allowed_music_file(file.filename):
+        filename = secure_filename(f"{session['user_id']}_{file.filename}")
+        file.save(os.path.join(app.config['MUSIC_FOLDER'], filename))
+        
+        conn = get_db()
+        conn.execute('UPDATE users SET meditation_music = ? WHERE id = ?', (filename, session['user_id']))
+        conn.commit()
+        conn.close()
+        
+        return redirect(url_for('meditation'))
+    
+    return "فرمت فایل پشتیبانی نمی‌شود. فقط MP3, WAV, OGG"
+
+# ======================== سایر صفحات ========================
 
 @app.route('/shopping_list')
 def shopping_list():

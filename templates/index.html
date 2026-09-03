@@ -3,37 +3,135 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>سیستم کامل برنامه‌ریزی</title>
+    <title>My Planner</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(145deg, #f0f4ff 0%, #e8edf5 100%);
+            background: linear-gradient(145deg, #f0f7ff 0%, #e3edfa 100%);
             min-height: 100vh;
             padding: 20px;
-            color: #1a1a2e;
+            color: #1a2a3a;
         }
         .container { max-width: 900px; margin: 0 auto; }
         
-        .hero {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        /* ===== هدر با عکس پروفایل ===== */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: white;
+            padding: 12px 20px;
+            border-radius: 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .header-left .logo {
+            font-size: 24px;
+            font-weight: 800;
+            color: #4A90D9;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .profile-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #4A90D9;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+        .profile-avatar:hover {
+            transform: scale(1.1);
+            border-color: #5BA3E6;
+        }
+        .profile-avatar-default {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #4A90D9;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            border: 2px solid #4A90D9;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .profile-avatar-default:hover {
+            transform: scale(1.1);
+        }
+        .username {
+            font-weight: 600;
+            color: #1a2a3a;
+        }
+        .settings-link {
+            font-size: 22px;
+            text-decoration: none;
+            color: #6b7f94;
+            transition: 0.3s;
+        }
+        .settings-link:hover {
+            color: #4A90D9;
+            transform: rotate(30deg);
+        }
+        
+        /* ===== بقیه استایل‌ها ===== */
+        .welcome-section {
+            background: linear-gradient(135deg, #4A90D9 0%, #5BA3E6 100%);
             border-radius: 24px;
             padding: 30px 28px;
             color: white;
             margin-bottom: 28px;
-            box-shadow: 0 12px 30px rgba(102, 126, 234, 0.35);
+            box-shadow: 0 12px 30px rgba(74, 144, 217, 0.35);
         }
-        .hero h1 { font-size: 28px; font-weight: 800; margin-bottom: 4px; }
-        .hero .subtitle { font-size: 15px; opacity: 0.9; }
-        .hero .stats-badge {
-            display: inline-block;
-            background: rgba(255,255,255,0.2);
-            padding: 6px 18px;
-            border-radius: 30px;
-            font-size: 14px;
-            margin-top: 12px;
+        .welcome-section h1 { font-size: 28px; font-weight: 800; margin-bottom: 4px; }
+        .welcome-section .motivational { font-size: 18px; opacity: 0.95; margin-top: 8px; font-style: italic; }
+        .welcome-section .sub-motivational { font-size: 15px; opacity: 0.85; margin-top: 6px; }
+        
+        .nav-tabs {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 24px;
+            background: white;
+            border-radius: 16px;
+            padding: 6px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+        .nav-tabs a {
+            flex: 1;
+            min-width: 80px;
+            text-align: center;
+            padding: 10px 12px;
+            border-radius: 12px;
+            text-decoration: none;
+            color: #4a6a85;
             font-weight: 600;
+            font-size: 13px;
+            transition: 0.3s;
         }
+        .nav-tabs a:hover { background: #e8f0fe; }
+        .nav-tabs a.active {
+            background: linear-gradient(135deg, #4A90D9, #5BA3E6);
+            color: white;
+            box-shadow: 0 4px 15px rgba(74, 144, 217, 0.3);
+        }
+        .nav-tabs a.premium {
+            border: 2px solid #F5A623;
+            color: #F5A623;
+        }
+        .nav-tabs a.premium:hover { background: #FFF8E1; }
         
         .stats-grid {
             display: grid;
@@ -48,12 +146,12 @@
             text-align: center;
             box-shadow: 0 4px 15px rgba(0,0,0,0.06);
         }
-        .stat-card .number { font-size: 32px; font-weight: 800; }
-        .stat-card .label { font-size: 13px; color: #6b7280; margin-top: 4px; }
-        .stat-card .sub-label { font-size: 11px; color: #9ca3af; margin-top: 2px; }
-        .stat-card.purple .number { color: #7C3AED; }
-        .stat-card.green .number { color: #10B981; }
-        .stat-card.orange .number { color: #F59E0B; }
+        .stat-card .number { font-size: 32px; font-weight: 800; color: #1a2a3a; }
+        .stat-card .label { font-size: 13px; color: #6b7f94; margin-top: 4px; }
+        .stat-card .sub-label { font-size: 11px; color: #9aafc4; margin-top: 2px; }
+        .stat-card.blue .number { color: #4A90D9; }
+        .stat-card.green .number { color: #27AE60; }
+        .stat-card.orange .number { color: #F5A623; }
         
         .section {
             background: white;
@@ -68,20 +166,20 @@
             align-items: center;
             margin-bottom: 16px;
         }
-        .section-header h2 { font-size: 19px; font-weight: 700; }
+        .section-header h2 { font-size: 19px; font-weight: 700; color: #1a2a3a; }
         .section-header .badge-count {
-            background: #f3f4f6;
+            background: #e8f0fe;
             padding: 4px 14px;
             border-radius: 20px;
             font-size: 13px;
-            color: #6b7280;
+            color: #4A90D9;
         }
         
         .task-item {
             display: flex;
             align-items: center;
             padding: 12px 0;
-            border-bottom: 1px solid #f3f4f6;
+            border-bottom: 1px solid #eef3f8;
             gap: 12px;
         }
         .task-item:last-child { border-bottom: none; }
@@ -89,22 +187,17 @@
             width: 24px;
             height: 24px;
             border-radius: 50%;
-            border: 2px solid #d1d5db;
+            border: 2px solid #c5d5e5;
             display: flex;
             align-items: center;
             justify-content: center;
-            cursor: pointer;
             text-decoration: none;
             font-size: 14px;
             transition: 0.3s;
         }
-        .task-check.done {
-            background: #10B981;
-            border-color: #10B981;
-            color: white;
-        }
+        .task-check.done { background: #27AE60; border-color: #27AE60; color: white; }
         .task-title { flex: 1; font-size: 15px; }
-        .task-title.done { text-decoration: line-through; color: #9ca3af; }
+        .task-title.done { text-decoration: line-through; color: #9aafc4; }
         .task-priority {
             width: 8px;
             height: 8px;
@@ -113,13 +206,13 @@
         }
         .task-category {
             font-size: 12px;
-color: #9ca3af;
-            background: #f3f4f6;
+            color: #6b7f94;
+            background: #eef3f8;
             padding: 2px 12px;
             border-radius: 12px;
         }
         .task-delete {
-            color: #ef4444;
+            color: #e74c3c;
             text-decoration: none;
             font-size: 16px;
             opacity: 0.4;
@@ -150,17 +243,17 @@ color: #9ca3af;
             align-items: center;
             justify-content: center;
             font-size: 32px;
-            border: 4px solid #e5e7eb;
+            border: 4px solid #dce5ef;
             transition: all 0.3s;
             background: white;
         }
         .habit-circle.done {
-            border-color: #10B981;
-            background: #d1fae5;
-            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+            border-color: #27AE60;
+            background: #d5f5e3;
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
         }
         .habit-circle:hover { transform: scale(1.08); }
-        .habit-name { font-size: 13px; color: #4b5563; font-weight: 500; }
+        .habit-name { font-size: 13px; color: #4a6a85; font-weight: 500; }
         
         .form-row {
             display: flex;
@@ -170,20 +263,20 @@ color: #9ca3af;
         }
         .form-row input, .form-row select {
             padding: 10px 14px;
-            border: 2px solid #e5e7eb;
+            border: 2px solid #dce5ef;
             border-radius: 12px;
             flex: 1;
             min-width: 100px;
             font-size: 14px;
-            background: #fafafa;
+            background: #fafcff;
             transition: 0.3s;
         }
         .form-row input:focus, .form-row select:focus {
             outline: none;
-            border-color: #7C3AED;
+            border-color: #4A90D9;
         }
         .btn {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #4A90D9, #5BA3E6);
             color: white;
             border: none;
             padding: 10px 24px;
@@ -193,64 +286,90 @@ color: #9ca3af;
             font-weight: 600;
             transition: 0.3s;
         }
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-        }
-        .empty-state {
-            text-align: center;
-            color: #9ca3af;
-            padding: 20px 0;
-        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(74, 144, 217, 0.4); }
+        .empty-state { text-align: center; color: #9aafc4; padding: 20px 0; }
         
-        .nav-tabs {
-            display: flex;
-            gap: 6px;
-            margin-bottom: 24px;
-            background: white;
-            border-radius: 16px;
-            padding: 6px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-        }
-        .nav-tabs a {
-            flex: 1;
+        .footer {
             text-align: center;
-            padding: 10px 12px;
+            padding: 30px 0 20px;
+            color: #6b7f94;
+            font-size: 14px;
+        }
+        .footer .download-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+        .footer .download-buttons a {
+            background: #1a2a3a;
+            color: white;
+            padding: 10px 24px;
             border-radius: 12px;
             text-decoration: none;
-            color: #6b7280;
             font-weight: 600;
-            font-size: 14px;
             transition: 0.3s;
         }
-        .nav-tabs a.active {
-            background: linear-gradient(135deg, #667eea, #764ba2);
-            color: white;
-        }
+        .footer .download-buttons a:hover { background: #2a4055; transform: translateY(-2px); }
         
         @media (max-width: 600px) {
             .stats-grid { grid-template-columns: 1fr 1fr; }
             .stats-grid .stat-card:last-child { grid-column: 1 / -1; }
-            .hero h1 { font-size: 22px; }
+            .welcome-section h1 { font-size: 22px; }
+            .nav-tabs a { font-size: 12px; padding: 8px 6px; min-width: 60px; }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <div class="hero">
-            <h1>📋 سیستم کامل برنامه‌ریزی</h1>
-            <div class="subtitle">زندگی منظم، هدفمند و پر بازده</div>
-            <div class="stats-badge">🔥 بیش از {{ users }} نفر تجربه کرده‌اند</div>
-        </div>
-<div class="nav-tabs">
-            <a href="/" class="active">🏠 خانه</a>
-            <a href="/planner">📅 پلنر روزانه</a>
-            <a href="/finance">💰 مدیریت مالی</a>
-            <a href="/habits">🔥 عادت‌ها</a>
+        
+        <!-- ===== هدر با عکس پروفایل ===== -->
+        <div class="header">
+            <div class="header-left">
+                <span class="logo">📋 My Planner</span>
+            </div>
+            <div class="header-right">
+                <a href="/profile">
+                    {% if profile_image and profile_image != 'default.png' %}
+                        <img src="/static/profile_pics/{{ profile_image }}" alt="پروفایل" class="profile-avatar">
+                    {% else %}
+                        <div class="profile-avatar-default">👤</div>
+                    {% endif %}
+                </a>
+                <span class="username">{{ username }}</span>
+                <a href="/settings" class="settings-link">⚙️</a>
+            </div>
         </div>
         
+        <!-- ===== بخش خوش‌آمدگویی ===== -->
+        <div class="welcome-section">
+            <h1>{{ welcome_message }}</h1>
+            <div class="motivational">✨ {{ motivational_message }}</div>
+            <div class="sub-motivational">💪 همین امروز شروع کن!</div>
+        </div>
+        
+        <!-- ===== ناوبری ===== -->
+        <div class="nav-tabs">
+            <a href="/" class="active">🏠 خانه</a>
+            <a href="/planner">📅 پلنر</a>
+            <a href="/finance">💰 مالی</a>
+            <a href="/habits">🔥 عادت‌ها</a>
+            <a href="/shopping_list">🛒 خرید</a>
+            <a href="/profile">👤 پروفایل</a>
+            {% if is_premium %}
+                <a href="/meditation">🧘 مدیتیشن</a>
+                <a href="/study_techniques">📚 مطالعه</a>
+                <a href="/chatbot">🤖 چت‌بات</a>
+                <a href="/journal">📖 ژورنال</a>
+            {% else %}
+                <a href="/subscription" class="premium">⭐ اشتراک</a>
+            {% endif %}
+        </div>
+        
+        <!-- ===== کارت‌های آمار ===== -->
         <div class="stats-grid">
-            <div class="stat-card purple">
+            <div class="stat-card blue">
                 <div class="number">{{ tasks_count }}</div>
                 <div class="label">وظایف امروز</div>
                 <div class="sub-label">{{ completion }}% انجام شده</div>
@@ -267,6 +386,7 @@ color: #9ca3af;
             </div>
         </div>
         
+        <!-- ===== وظایف امروز ===== -->
         <div class="section">
             <div class="section-header">
                 <h2>📋 برنامه امروز</h2>
@@ -278,7 +398,7 @@ color: #9ca3af;
                     <a href="/toggle_task/{{ task.id }}" class="task-check {% if task.done %}done{% endif %}">
                         {% if task.done %}✓{% endif %}
                     </a>
-                    <span class="task-priority" style="background: {% if task.priority <= 2 %}#ef4444{% elif task.priority <= 3 %}#F59E0B{% else %}#7C3AED{% endif %};"></span>
+                    <span class="task-priority" style="background: {% if task.priority <= 2 %}#e74c3c{% elif task.priority <= 3 %}#F5A623{% else %}#4A90D9{% endif %};"></span>
                     <span class="task-title {% if task.done %}done{% endif %}">{{ task.title }}</span>
                     <span class="task-category">{{ task.category }}</span>
                     <a href="/delete_task/{{ task.id }}" class="task-delete">✕</a>
@@ -304,6 +424,7 @@ color: #9ca3af;
             </form>
         </div>
         
+        <!-- ===== عادت‌ها ===== -->
         <div class="section">
             <div class="section-header">
                 <h2>🔥 عادت‌های امروز</h2>
@@ -314,26 +435,35 @@ color: #9ca3af;
                     {% for habit in habits %}
                     <a href="/toggle_habit/{{ habit.id }}" class="habit-circle-item">
                         <div class="habit-circle {% if habit.done %}done{% endif %}" 
-                             style="border-color: {{ habit.color if not habit.done else '#10B981' }};">
+                             style="border-color: {{ habit.color if not habit.done else '#27AE60' }};">
                             {{ habit.emoji }}
                         </div>
                         <span class="habit-name">{{ habit.name }}</span>
                     </a>
                     {% endfor %}
-{% else %}
+                {% else %}
                     <div class="empty-state">🌟 هنوز عادتی ثبت نشده</div>
                 {% endif %}
             </div>
             <form action="/add_habit" method="POST" class="form-row">
                 <input type="text" name="name" placeholder="نام عادت..." required>
                 <input type="text" name="emoji" placeholder="🚀" style="max-width:70px;">
-                <input type="color" name="color" value="#7C3AED" style="max-width:60px; padding:4px; height:44px;">
+                <input type="color" name="color" value="#4A90D9" style="max-width:60px; padding:4px; height:44px;">
                 <select name="frequency" style="max-width:120px;">
                     <option value="daily">روزانه</option>
                     <option value="weekly">هفتگی</option>
                 </select>
                 <button type="submit" class="btn">➕ افزودن عادت</button>
             </form>
+        </div>
+        
+        <!-- ===== فوتر ===== -->
+        <div class="footer">
+            <p>✨ بهترین نسخه خودت رو بساز!</p>
+            <div class="download-buttons">
+                <a href="#">📲 دانلود برای اندروید</a>
+                <a href="#">🍎 دانلود برای آیفون</a>
+            </div>
         </div>
     </div>
 </body>

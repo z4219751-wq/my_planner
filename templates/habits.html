@@ -3,30 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>مدیریت عادت‌ها</title>
+    <title>عادت‌ها | My Planner</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(145deg, #f0f4ff 0%, #e8edf5 100%);
+            background: linear-gradient(145deg, #f0f7ff 0%, #e3edfa 100%);
             min-height: 100vh;
             padding: 20px;
+            color: #1a2a3a;
         }
         .container { max-width: 900px; margin: 0 auto; }
-        
+
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #4A90D9 0%, #5BA3E6 100%);
             border-radius: 24px;
             padding: 28px;
             color: white;
             margin-bottom: 24px;
+            box-shadow: 0 12px 30px rgba(74, 144, 217, 0.35);
         }
         .header h1 { font-size: 26px; }
-        .header .sub { opacity: 0.9; }
-        
+        .header .sub { opacity: 0.9; font-size: 15px; }
+
         .nav-tabs {
             display: flex;
             gap: 6px;
+            flex-wrap: wrap;
             margin-bottom: 24px;
             background: white;
             border-radius: 16px;
@@ -35,20 +38,23 @@
         }
         .nav-tabs a {
             flex: 1;
+            min-width: 70px;
             text-align: center;
             padding: 10px 12px;
             border-radius: 12px;
             text-decoration: none;
-            color: #6b7280;
+            color: #4a6a85;
             font-weight: 600;
-            font-size: 14px;
+            font-size: 13px;
             transition: 0.3s;
         }
+        .nav-tabs a:hover { background: #e8f0fe; }
         .nav-tabs a.active {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #4A90D9, #5BA3E6);
             color: white;
+            box-shadow: 0 4px 15px rgba(74, 144, 217, 0.3);
         }
-        
+
         .section {
             background: white;
             border-radius: 20px;
@@ -57,20 +63,21 @@
             box-shadow: 0 4px 15px rgba(0,0,0,0.05);
         }
         .section h2 { font-size: 19px; margin-bottom: 16px; }
-        
+
         .habit-card {
             display: flex;
             align-items: center;
             justify-content: space-between;
             padding: 14px 0;
-            border-bottom: 1px solid #f3f4f6;
+            border-bottom: 1px solid #eef3f8;
         }
         .habit-card:last-child { border-bottom: none; }
         .habit-info { display: flex; align-items: center; gap: 14px; }
         .habit-emoji { font-size: 32px; }
         .habit-name { font-weight: 600; font-size: 17px; }
-        .habit-stats { font-size: 13px; color: #6b7280; }
+        .habit-stats { font-size: 13px; color: #6b7f94; }
         .habit-actions { display: flex; gap: 8px; }
+
         .btn-sm {
             padding: 6px 14px;
             border-radius: 10px;
@@ -81,23 +88,23 @@
             text-decoration: none;
         }
         .btn-done {
-            background: #10B981;
+            background: #27AE60;
             color: white;
         }
-        .btn-done:hover { background: #059669; }
+        .btn-done:hover { background: #219A52; }
         .btn-undone {
-            background: #f3f4f6;
-            color: #6b7280;
+            background: #eef3f8;
+            color: #6b7f94;
         }
         .btn-danger {
-            background: #ef4444;
+            background: #e74c3c;
             color: white;
             padding: 6px 12px;
             border-radius: 8px;
             text-decoration: none;
             font-size: 13px;
         }
-        
+
         .form-row {
             display: flex;
             gap: 10px;
@@ -106,28 +113,31 @@
         }
         .form-row input, .form-row select {
             padding: 10px 14px;
-            border: 2px solid #e5e7eb;
+            border: 2px solid #dce5ef;
             border-radius: 12px;
             flex: 1;
             min-width: 100px;
             font-size: 14px;
-            background: #fafafa;
+            background: #fafcff;
+            transition: 0.3s;
         }
         .form-row input:focus, .form-row select:focus {
             outline: none;
-            border-color: #7C3AED;
+            border-color: #4A90D9;
         }
         .btn {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #4A90D9, #5BA3E6);
             color: white;
             border: none;
             padding: 10px 24px;
-border-radius: 12px;
+            border-radius: 12px;
             cursor: pointer;
             font-weight: 600;
+            transition: 0.3s;
         }
-        .empty-state { text-align: center; color: #9ca3af; padding: 20px 0; }
-        
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(74, 144, 217, 0.4); }
+        .empty-state { text-align: center; color: #9aafc4; padding: 20px 0; }
+
         @media (max-width: 600px) {
             .habit-card { flex-direction: column; align-items: stretch; gap: 8px; }
             .habit-actions { justify-content: flex-start; }
@@ -140,14 +150,16 @@ border-radius: 12px;
             <h1>🔥 هینت ترکر</h1>
             <div class="sub">عادت‌های خوب را بساز، پایدار نگه دار</div>
         </div>
-        
+
         <div class="nav-tabs">
             <a href="/">🏠 خانه</a>
             <a href="/planner">📅 پلنر</a>
             <a href="/finance">💰 مالی</a>
             <a href="/habits" class="active">🔥 عادت‌ها</a>
+            <a href="/shopping_list">🛒 خرید</a>
+            <a href="/profile">👤 پروفایل</a>
         </div>
-        
+
         <div class="section">
             <h2>📊 لیست عادت‌ها</h2>
             {% if habits %}
@@ -159,9 +171,9 @@ border-radius: 12px;
                             <div class="habit-name">{{ habit.name }}</div>
                             <div class="habit-stats">
                                 {% if habit.today_done %}
-                                <span style="color:#10B981;">✅ امروز انجام شد</span>
+                                <span style="color:#27AE60;">✅ امروز انجام شد</span>
                                 {% else %}
-                                <span style="color:#9ca3af;">⬜ امروز ثبت نشده</span>
+                                <span style="color:#9aafc4;">⬜ امروز ثبت نشده</span>
                                 {% endif %}
                                 • {{ habit.total_days }} روز • {{ habit.last_7 }} روز اخیر
                             </div>
@@ -178,11 +190,11 @@ border-radius: 12px;
             {% else %}
                 <div class="empty-state">🌟 هنوز عادتی ثبت نشده</div>
             {% endif %}
-            
+
             <form action="/add_habit" method="POST" class="form-row">
                 <input type="text" name="name" placeholder="نام عادت..." required>
                 <input type="text" name="emoji" placeholder="🚀" style="max-width:70px;">
-                <input type="color" name="color" value="#7C3AED" style="max-width:60px; padding:4px; height:44px;">
+                <input type="color" name="color" value="#4A90D9" style="max-width:60px; padding:4px; height:44px;">
                 <select name="frequency" style="max-width:120px;">
                     <option value="daily">روزانه</option>
                     <option value="weekly">هفتگی</option>
