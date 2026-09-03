@@ -12,6 +12,7 @@ app = Flask(__name__)
 app.secret_key = "mysecretkey123456789"
 app.permanent_session_lifetime = timedelta(days=365)
 
+# ====== تنظیمات آپلود ======
 UPLOAD_FOLDER = 'static/profile_pics'
 MUSIC_FOLDER = 'static/music'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
@@ -323,6 +324,54 @@ def signup():
             conn.close()
             return "این نام کاربری یا ایمیل قبلاً ثبت شده است"
     return render_template('signup.html')
+
+@app.route('/signup_with_invite/<invite_code>', methods=['GET', 'POST'])
+def signup_with_invite(invite_code):
+    if request.method == 'POST':
+        username = request.form['username']
+        email = request.form['email']
+        password = hash_password(request.form['password'])
+        full_name = request.form.get('full_name', '')
+        
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        inviter = cursor.execute('SELECT id FROM users WHERE invite_code = ?', (invite_code,)).fetchone()
+        if not inviter:
+            conn.close()
+            return "کد معرف نامعتبر است"
+        
+        try:
+            new_invite_code = generate_invite_code()
+            trial_end = date.today() + timedelta(days=5)
+            
+            cursor.execute('''
+                INSERT INTO users (username, email, password, full_name, subscription_type, subscription_end, invite_code)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (username, email, password, full_name, 'trial', trial_end.isoformat(), new_invite_code))
+            
+            user_id = cursor.lastrowid
+            
+            cursor.execute('''
+                INSERT INTO invites (inviter_id, invited_email, status)
+                VALUES (?, ?, 'accepted')
+            ''', (inviter['id'], email))
+            
+            inviter_end = date.today() + timedelta(days=5)
+            cursor.execute('''
+                UPDATE users SET subscription_type = 'trial', subscription_end = ?
+                WHERE id = ?
+            ''', (inviter_end.isoformat(), inviter['id']))
+            
+            conn.commit()
+            conn.close()
+            return redirect(url_for('login'))
+            
+        except sqlite3.IntegrityError:
+            conn.close()
+            return "این نام کاربری یا ایمیل قبلاً ثبت شده است"
+    
+    return render_template('signup_invite.html', invite_code=invite_code)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
