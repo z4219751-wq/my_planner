@@ -6,7 +6,6 @@ import hashlib
 app = Flask(name)
 app.secret_key = "mysecretkey123456789"
 
-# ====== اتصال به دیتابیس ======
 def get_db():
     conn = sqlite3.connect('data.db')
     conn.row_factory = sqlite3.Row
@@ -81,7 +80,6 @@ init_db()
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-# ====== صفحه اصلی ======
 @app.route('/')
 def index():
     if 'user_id' not in session:
@@ -119,13 +117,11 @@ def index():
                          tasks_count=tasks_count,
                          done_count=done_count,
                          completion=completion,
-today_expense=today_expense,
+                         today_expense=today_expense,
                          habits=habit_progress,
                          today=today,
                          total_habits=len(habits),
                          done_habits=sum(1 for h in habit_progress if h['done']))
-
-# ====== ثبت‌نام ======
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
@@ -142,7 +138,6 @@ def signup():
             return "این ایمیل قبلاً ثبت شده است"
     return render_template('signup.html')
 
-# ====== ورود ======
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -159,13 +154,11 @@ def login():
             return "ایمیل یا رمز عبور اشتباه است"
     return render_template('login.html')
 
-# ====== خروج ======
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('login'))
 
-# ====== وظایف ======
 @app.route('/add_task', methods=['POST'])
 def add_task():
     if 'user_id' not in session:
@@ -203,7 +196,6 @@ def delete_task(task_id):
     conn.close()
     return redirect(url_for('index'))
 
-# ====== عادت‌ها ======
 @app.route('/add_habit', methods=['POST'])
 def add_habit():
     if 'user_id' not in session:
@@ -225,7 +217,7 @@ def toggle_habit(habit_id):
     today = date.today().isoformat()
     conn = get_db()
     log = conn.execute('SELECT * FROM habit_logs WHERE habit_id = ? AND date = ?', (habit_id, today)).fetchone()
-if log:
+    if log:
         conn.execute('DELETE FROM habit_logs WHERE habit_id = ? AND date = ?', (habit_id, today))
     else:
         conn.execute('INSERT INTO habit_logs (habit_id, date) VALUES (?, ?)', (habit_id, today))
@@ -243,8 +235,6 @@ def delete_habit(habit_id):
     conn.commit()
     conn.close()
     return redirect(url_for('index'))
-
-# ====== مالی ======
 @app.route('/add_transaction', methods=['POST'])
 def add_transaction():
     if 'user_id' not in session:
@@ -269,7 +259,6 @@ def delete_transaction(trans_id):
     conn.close()
     return redirect(url_for('finance'))
 
-# ====== صفحات ======
 @app.route('/planner')
 def planner():
     if 'user_id' not in session:
