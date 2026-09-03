@@ -15,8 +15,6 @@ app.permanent_session_lifetime = timedelta(days=365)
 UPLOAD_FOLDER = 'static/profile_pics'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
-
-# ایجاد پوشه اگر وجود ندارد
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 def allowed_file(filename):
@@ -30,7 +28,6 @@ def get_db():
 def init_db():
     conn = get_db()
     cursor = conn.cursor()
-    
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,7 +42,6 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
-    
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS tasks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -58,7 +54,6 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
     ''')
-    
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS transactions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -71,7 +66,6 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
     ''')
-    
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS habits (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -83,7 +77,6 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
     ''')
-    
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS habit_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -93,7 +86,6 @@ def init_db():
             FOREIGN KEY (habit_id) REFERENCES habits (id) ON DELETE CASCADE
         )
     ''')
-    
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS invites (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -104,7 +96,6 @@ def init_db():
             FOREIGN KEY (inviter_id) REFERENCES users (id)
         )
     ''')
-    
     conn.commit()
     conn.close()
 
@@ -144,29 +135,23 @@ def get_motivational_message():
     ]
     return random.choice(messages)
 
-# ====== صفحه اصلی ======
 @app.route('/')
 def index():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    
     user_id = session['user_id']
     today = date.today().isoformat()
     conn = get_db()
     cursor = conn.cursor()
-    
     user = cursor.execute('SELECT username, full_name, profile_image FROM users WHERE id = ?', (user_id,)).fetchone()
     username = user['username'] if user else 'کاربر'
     profile_image = user['profile_image'] if user else 'default.png'
-    
     tasks = cursor.execute('SELECT * FROM tasks WHERE user_id = ? AND date = ?', (user_id, today)).fetchall()
     tasks_count = len(tasks)
     done_count = sum(1 for t in tasks if t['done'])
     completion = int((done_count / tasks_count * 100)) if tasks_count > 0 else 0
-    
     expense = cursor.execute('SELECT SUM(amount) as total FROM transactions WHERE user_id = ? AND date = ? AND type = "expense"', (user_id, today)).fetchone()
     today_expense = expense['total'] or 0
-    
     habits = cursor.execute('SELECT * FROM habits WHERE user_id = ?', (user_id,)).fetchall()
     habit_progress = []
     for h in habits:
@@ -178,11 +163,9 @@ def index():
             'color': h['color'],
             'done': log is not None
         })
-    
     sub_info = cursor.execute('SELECT subscription_type, subscription_end FROM users WHERE id = ?', (user_id,)).fetchone()
     is_premium_user = is_premium(user_id)
     conn.close()
-    
     return render_template('index.html',
                          username=username,
                          profile_image=profile_image,
@@ -200,7 +183,6 @@ def index():
                          is_premium=is_premium_user,
                          subscription_type=sub_info['subscription_type'] if sub_info else 'free')
 
-# ====== ثبت‌نام ======
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
@@ -208,17 +190,14 @@ def signup():
         email = request.form['email']
         password = hash_password(request.form['password'])
         full_name = request.form.get('full_name', '')
-        
         conn = get_db()
         try:
             invite_code = generate_invite_code()
             trial_end = date.today() + timedelta(days=5)
-            
             conn.execute('''
                 INSERT INTO users (username, email, password, full_name, subscription_type, subscription_end, invite_code)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             ''', (username, email, password, full_name, 'trial', trial_end.isoformat(), invite_code))
-            
             conn.commit()
             conn.close()
             return redirect(url_for('login'))
@@ -227,26 +206,20 @@ def signup():
             return "این نام کاربری یا ایمیل قبلاً ثبت شده است"
     return render_template('signup.html')
 
-# ====== ورود ======
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
         email = request.form['email']
         password = hash_password(request.form['password'])
         remember = request.form.get('remember')
-        
         conn = get_db()
         user = conn.execute('SELECT * FROM users WHERE email = ? AND password = ?', (email, password)).fetchone()
         conn.close()
-        
         if user:
             session['user_id'] = user['id']
             session['email'] = user['email']
             session['username'] = user['username']
-            if remember:
-                session.permanent = True
-            else:
-                session.permanent = False
+            session.permanent = True if remember else False
             return redirect(url_for('index'))
         else:
             return "ایمیل یا رمز عبور اشتباه است"
@@ -257,32 +230,25 @@ def logout():
     session.clear()
     return redirect(url_for('login'))
 
-# ====== پروفایل با آپلود عکس ======
 @app.route('/profile', methods=['GET', 'POST'])
 def profile():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    
     conn = get_db()
     user = conn.execute('SELECT * FROM users WHERE id = ?', (session['user_id'],)).fetchone()
-    
     if request.method == 'POST':
         full_name = request.form.get('full_name')
-        
         if 'profile_image' in request.files:
             file = request.files['profile_image']
             if file and allowed_file(file.filename):
                 filename = secure_filename(f"{session['user_id']}_{file.filename}")
                 file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
                 conn.execute('UPDATE users SET profile_image = ? WHERE id = ?', (filename, session['user_id']))
-        
         if full_name:
             conn.execute('UPDATE users SET full_name = ? WHERE id = ?', (full_name, session['user_id']))
-        
         conn.commit()
         conn.close()
         return redirect(url_for('profile'))
-    
     conn.close()
     return render_template('profile.html', user=user)
 
@@ -334,17 +300,15 @@ def study_techniques():
         return redirect(url_for('login'))
     if not is_premium(session['user_id']):
         return redirect(url_for('subscription'))
-    
     techniques = [
-        {'id': 1, 'name': 'پومودورو', 'desc': '۲۵ دقیقه کار، ۵ دقیقه استراحت', 'full': 'تکنیک پومودورو یک روش مدیریت زمان است که توسط فرانچسکو سیریلو در دهه ۱۹۸۰ ابداع شد. در این روش، شما ۲۵ دقیقه به صورت متمرکز روی یک کار کار می‌کنید و سپس ۵ دقیقه استراحت می‌کنید. بعد از ۴ دوره، یک استراحت طولانی‌تر (۱۵-۳۰ دقیقه) انجام می‌دهید.'},
-        {'id': 2, 'name': 'تکنیک فاینمن', 'desc': 'یادگیری با آموزش به دیگران', 'full': 'ریچارد فاینمن، فیزیکدان برنده جایزه نوبل، معتقد بود بهترین راه برای یادگیری یک مطلب، آموزش آن به دیگران است. در این روش، شما مطلب را به زبانی ساده و روان توضیح می‌دهید تا مطمئن شوید خودتان کاملاً آن را درک کرده‌اید.'},
-        {'id': 3, 'name': '۵۰/۱۰', 'desc': '۵۰ دقیقه مطالعه، ۱۰ دقیقه استراحت', 'full': 'این روش مشابه پومودورو است اما با زمان‌های طولانی‌تر. ۵۰ دقیقه مطالعه متمرکز و ۱۰ دقیقه استراحت. مناسب برای افرادی که می‌توانند تمرکز طولانی‌تری داشته باشند.'},
-        {'id': 4, 'name': 'تکنیک ۲/۵/۷', 'desc': 'مرور در روزهای ۲، ۵ و ۷', 'full': 'این تکنیک بر اساس منحنی فراموشی ابینگهاوس طراحی شده است. شما یک مطلب را در روزهای ۲، ۵ و ۷ بعد از یادگیری مرور می‌کنید تا در حافظه بلندمدت تثبیت شود.'},
-        {'id': 5, 'name': 'نقشه ذهنی', 'desc': 'ایجاد نقشه برای درک بهتر مطالب', 'full': 'نقشه ذهنی یک روش گرافیکی برای سازماندهی اطلاعات است. شما یک موضوع اصلی را در مرکز قرار می‌دهید و شاخه‌های فرعی را به آن متصل می‌کنید. این روش به درک بهتر روابط بین مفاهیم کمک می‌کند.'},
-        {'id': 6, 'name': 'خواندن فعال', 'desc': 'یادداشت‌برداری و سوال پرسیدن هنگام مطالعه', 'full': 'در این روش، شما به جای خواندن منفعل، با متن درگیر می‌شوید. سوال می‌پرسید، یادداشت برمی‌دارید، خلاصه‌نویسی می‌کنید و نکات کلیدی را مشخص می‌کنید. این روش باعث درک عمیق‌تر مطالب می‌شود.'},
-        {'id': 7, 'name': 'تکنیک ۱۰۰۰ ساعت', 'desc': '۱۰۰۰ ساعت تمرکز روی یک مهارت', 'full': 'این تکنیک بر اساس قانون ۱۰۰۰۰ ساعت مالکوم گلدول طراحی شده است. اما نسخه ساده‌تر آن، ۱۰۰۰ ساعت تمرکز روی یک مهارت خاص است. با ۱۰۰۰ ساعت تمرین هدفمند، می‌توانید در هر مهارتی به سطح بالایی از تسلط برسید.'},
+        {'id': 1, 'name': 'پومودورو', 'desc': '۲۵ دقیقه کار، ۵ دقیقه استراحت'},
+        {'id': 2, 'name': 'تکنیک فاینمن', 'desc': 'یادگیری با آموزش به دیگران'},
+        {'id': 3, 'name': '۵۰/۱۰', 'desc': '۵۰ دقیقه مطالعه، ۱۰ دقیقه استراحت'},
+        {'id': 4, 'name': 'تکنیک ۲/۵/۷', 'desc': 'مرور در روزهای ۲، ۵ و ۷'},
+        {'id': 5, 'name': 'نقشه ذهنی', 'desc': 'ایجاد نقشه برای درک بهتر مطالب'},
+        {'id': 6, 'name': 'خواندن فعال', 'desc': 'یادداشت‌برداری و سوال پرسیدن هنگام مطالعه'},
+        {'id': 7, 'name': 'تکنیک ۱۰۰۰ ساعت', 'desc': '۱۰۰۰ ساعت تمرکز روی یک مهارت'},
     ]
-    
     return render_template('study_techniques.html', techniques=techniques)
 
 @app.route('/technique/<int:tech_id>')
@@ -353,21 +317,39 @@ def technique_detail(tech_id):
         return redirect(url_for('login'))
     if not is_premium(session['user_id']):
         return redirect(url_for('subscription'))
-    
     techniques = [
-        {'id': 1, 'name': 'پومودورو', 'desc': '۲۵ دقیقه کار، ۵ دقیقه استراحت', 'full': 'تکنیک پومودورو یک روش مدیریت زمان است که توسط فرانچسکو سیریلو در دهه ۱۹۸۰ ابداع شد. در این روش، شما ۲۵ دقیقه به صورت متمرکز روی یک کار کار می‌کنید و سپس ۵ دقیقه استراحت می‌کنید. بعد از ۴ دوره، یک استراحت طولانی‌تر (۱۵-۳۰ دقیقه) انجام می‌دهید.'},
-        {'id': 2, 'name': 'تکنیک فاینمن', 'desc': 'یادگیری با آموزش به دیگران', 'full': 'ریچارد فاینمن، فیزیکدان برنده جایزه نوبل، معتقد بود بهترین راه برای یادگیری یک مطلب، آموزش آن به دیگران است. در این روش، شما مطلب را به زبانی ساده و روان توضیح می‌دهید تا مطمئن شوید خودتان کاملاً آن را درک کرده‌اید.'},
-        {'id': 3, 'name': '۵۰/۱۰', 'desc': '۵۰ دقیقه مطالعه، ۱۰ دقیقه استراحت', 'full': 'این روش مشابه پومودورو است اما با زمان‌های طولانی‌تر. ۵۰ دقیقه مطالعه متمرکز و ۱۰ دقیقه استراحت. مناسب برای افرادی که می‌توانند تمرکز طولانی‌تری داشته باشند.'},
-        {'id': 4, 'name': 'تکنیک ۲/۵/۷', 'desc': 'مرور در روزهای ۲، ۵ و ۷', 'full': 'این تکنیک بر اساس منحنی فراموشی ابینگهاوس طراحی شده است. شما یک مطلب را در روزهای ۲، ۵ و ۷ بعد از یادگیری مرور می‌کنید تا در حافظه بلندمدت تثبیت شود.'},
-        {'id': 5, 'name': 'نقشه ذهنی', 'desc': 'ایجاد نقشه برای درک بهتر مطالب', 'full': 'نقشه ذهنی یک روش گرافیکی برای سازماندهی اطلاعات است. شما یک موضوع اصلی را در مرکز قرار می‌دهید و شاخه‌های فرعی را به آن متصل می‌کنید. این روش به درک بهتر روابط بین مفاهیم کمک می‌کند.'},
-        {'id': 6, 'name': 'خواندن فعال', 'desc': 'یادداشت‌برداری و سوال پرسیدن هنگام مطالعه', 'full': 'در این روش، شما به جای خواندن منفعل، با متن درگیر می‌شوید. سوال می‌پرسید، یادداشت برمی‌دارید، خلاصه‌نویسی می‌کنید و نکات کلیدی را مشخص می‌کنید. این روش باعث درک عمیق‌تر مطالب می‌شود.'},
-        {'id': 7, 'name': 'تکنیک ۱۰۰۰ ساعت', 'desc': '۱۰۰۰ ساعت تمرکز روی یک مهارت', 'full': 'این تکنیک بر اساس قانون ۱۰۰۰۰ ساعت مالکوم گلدول طراحی شده است. اما نسخه ساده‌تر آن، ۱۰۰۰ ساعت تمرکز روی یک مهارت خاص است. با ۱۰۰۰ ساعت تمرین هدفمند، می‌توانید در هر مهارتی به سطح بالایی از تسلط برسید.'},
+        {'id': 1, 'name': 'پومودورو', 'desc': '۲۵ دقیقه کار، ۵ دقیقه استراحت', 
+         'full': 'تکنیک پومودورو یک روش مدیریت زمان است که توسط فرانچسکو سیریلو در دهه ۱۹۸۰ ابداع شد. در این روش، شما ۲۵ دقیقه به صورت متمرکز روی یک کار کار می‌کنید و سپس ۵ دقیقه استراحت می‌کنید. بعد از ۴ دوره، یک استراحت طولانی‌تر (۱۵-۳۰ دقیقه) انجام می‌دهید.',
+         'steps': ['یک کار را انتخاب کنید', 'تایمر را روی ۲۵ دقیقه تنظیم کنید', 'روی کار تمرکز کنید', '۵ دقیقه استراحت کنید', 'بعد از ۴ دوره، ۱۵-۳۰ دقیقه استراحت کنید'],
+         'tip': 'اگر در حین کار حواس‌تان پرت شد، آن را یادداشت کنید و بعداً پیگیری کنید.'},
+        {'id': 2, 'name': 'تکنیک فاینمن', 'desc': 'یادگیری با آموزش به دیگران', 
+         'full': 'ریچارد فاینمن، فیزیکدان برنده جایزه نوبل، معتقد بود بهترین راه برای یادگیری یک مطلب، آموزش آن به دیگران است. در این روش، شما مطلب را به زبانی ساده و روان توضیح می‌دهید تا مطمئن شوید خودتان کاملاً آن را درک کرده‌اید.',
+         'steps': ['مطلب را انتخاب کنید', 'آن را به یک کودک ۱۰ ساله توضیح دهید', 'جاهایی که گیر کردید را شناسایی کنید', 'دوباره مطالعه کنید و ساده‌تر توضیح دهید'],
+         'tip': 'اگر نمی‌توانید ساده توضیح دهید، یعنی خودتان کامل متوجه نشده‌اید.'},
+        {'id': 3, 'name': '۵۰/۱۰', 'desc': '۵۰ دقیقه مطالعه، ۱۰ دقیقه استراحت', 
+         'full': 'این روش مشابه پومودورو است اما با زمان‌های طولانی‌تر. ۵۰ دقیقه مطالعه متمرکز و ۱۰ دقیقه استراحت. مناسب برای افرادی که می‌توانند تمرکز طولانی‌تری داشته باشند.',
+         'steps': ['۵۰ دقیقه مطالعه متمرکز', '۱۰ دقیقه استراحت کامل', 'تکرار تا ۴ دوره'],
+         'tip': 'در زمان استراحت، از گوشی استفاده نکنید. بایستید و قدم بزنید.'},
+        {'id': 4, 'name': 'تکنیک ۲/۵/۷', 'desc': 'مرور در روزهای ۲، ۵ و ۷', 
+         'full': 'این تکنیک بر اساس منحنی فراموشی ابینگهاوس طراحی شده است. شما یک مطلب را در روزهای ۲، ۵ و ۷ بعد از یادگیری مرور می‌کنید تا در حافظه بلندمدت تثبیت شود.',
+         'steps': ['روز اول: یادگیری مطلب', 'روز دوم: مرور سریع', 'روز پنجم: مرور عمیق', 'روز هفتم: مرور نهایی'],
+         'tip': 'بهترین زمان مرور، صبح زود یا قبل از خواب است.'},
+        {'id': 5, 'name': 'نقشه ذهنی', 'desc': 'ایجاد نقشه برای درک بهتر مطالب', 
+         'full': 'نقشه ذهنی یک روش گرافیکی برای سازماندهی اطلاعات است. شما یک موضوع اصلی را در مرکز قرار می‌دهید و شاخه‌های فرعی را به آن متصل می‌کنید. این روش به درک بهتر روابط بین مفاهیم کمک می‌کند.',
+         'steps': ['موضوع اصلی را در مرکز بنویسید', 'شاخه‌های اصلی را اضافه کنید', 'برای هر شاخه، زیرشاخه‌ها را بنویسید', 'از رنگ‌ها و تصاویر استفاده کنید'],
+         'tip': 'از کاغذ بزرگ استفاده کنید و خلاقیت به خرج دهید.'},
+        {'id': 6, 'name': 'خواندن فعال', 'desc': 'یادداشت‌برداری و سوال پرسیدن هنگام مطالعه', 
+         'full': 'در این روش، شما به جای خواندن منفعل، با متن درگیر می‌شوید. سوال می‌پرسید، یادداشت برمی‌دارید، خلاصه‌نویسی می‌کنید و نکات کلیدی را مشخص می‌کنید. این روش باعث درک عمیق‌تر مطالب می‌شود.',
+         'steps': ['قبل از خواندن، سوالاتی بنویسید', 'هنگام خواندن، نکات کلیدی را یادداشت کنید', 'بعد از خواندن، خلاصه‌ای بنویسید', 'مطالب را به دیگران آموزش دهید'],
+         'tip': 'با مداد یا ماژیک هایلایت کار کنید تا تعامل بیشتری داشته باشید.'},
+        {'id': 7, 'name': 'تکنیک ۱۰۰۰ ساعت', 'desc': '۱۰۰۰ ساعت تمرکز روی یک مهارت', 
+         'full': 'این تکنیک بر اساس قانون ۱۰۰۰۰ ساعت مالکوم گلدول طراحی شده است. اما نسخه ساده‌تر آن، ۱۰۰۰ ساعت تمرکز روی یک مهارت خاص است. با ۱۰۰۰ ساعت تمرین هدفمند، می‌توانید در هر مهارتی به سطح بالایی از تسلط برسید.',
+         'steps': ['یک مهارت را انتخاب کنید', 'هر روز حداقل ۲ ساعت تمرین کنید', 'پیشرفت خود را ثبت کنید', 'هر هفته مرور و بهبود'],
+         'tip': 'کیفیت مهم‌تر از کمیت است. تمرین هدفمند انجام دهید.'}
     ]
-    
     tech = next((t for t in techniques if t['id'] == tech_id), None)
     if not tech:
         return "تکنیک پیدا نشد"
-    
     return render_template('technique_detail.html', technique=tech)
 
 @app.route('/chatbot')
