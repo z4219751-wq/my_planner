@@ -2,10 +2,8 @@ from flask import Flask, render_template, request, redirect, url_for, session
 from datetime import date, timedelta
 import sqlite3
 import hashlib
-import uuid
 import random
 import os
-import json
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
@@ -28,14 +26,6 @@ def allowed_file(filename):
 def allowed_music_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_MUSIC_EXTENSIONS
 
-def load_translations(lang):
-    try:
-        with open(f'locales/{lang}.json', 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except:
-        with open('locales/fa.json', 'r', encoding='utf-8') as f:
-            return json.load(f)
-
 def get_db():
     conn = sqlite3.connect('data.db')
     conn.row_factory = sqlite3.Row
@@ -53,11 +43,6 @@ def init_db():
             password TEXT NOT NULL,
             full_name TEXT,
             profile_image TEXT DEFAULT 'default.png',
-            language TEXT DEFAULT 'fa',
-            meditation_music TEXT DEFAULT '',
-            subscription_type TEXT DEFAULT 'trial',
-            subscription_end DATE,
-            invite_code TEXT UNIQUE,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
@@ -111,17 +96,6 @@ def init_db():
     ''')
     
     cursor.execute('''
-        CREATE TABLE IF NOT EXISTS invites (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            inviter_id INTEGER NOT NULL,
-            invited_email TEXT NOT NULL,
-            status TEXT DEFAULT 'pending',
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (inviter_id) REFERENCES users (id)
-        )
-    ''')
-    
-    cursor.execute('''
         CREATE TABLE IF NOT EXISTS journal_entries (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
@@ -155,25 +129,6 @@ init_db()
 def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
-def generate_invite_code():
-    return str(uuid.uuid4())[:8]
-
-def get_subscription_status(user_id):
-    conn = get_db()
-    user = conn.execute('SELECT subscription_type, subscription_end FROM users WHERE id = ?', (user_id,)).fetchone()
-    conn.close()
-    if not user:
-        return None
-    if user['subscription_end']:
-        end_date = date.fromisoformat(user['subscription_end'])
-        if end_date >= date.today():
-            return user['subscription_type']
-    return 'free'
-
-def is_premium(user_id):
-    status = get_subscription_status(user_id)
-    return status in ['trial', 'weekly', 'monthly', 'yearly']
-
 def get_motivational_message():
     messages = [
         "هر روز یک قدم به نسخه‌ی بهتر خودت نزدیک‌تر شو.",
@@ -185,12 +140,6 @@ def get_motivational_message():
         "تو می‌تونی! فقط باور کن."
     ]
     return random.choice(messages)
-
-def get_user_language(user_id):
-    conn = get_db()
-    user = conn.execute('SELECT language FROM users WHERE id = ?', (user_id,)).fetchone()
-    conn.close()
-    return user['language'] if user else 'fa'
 
 def add_sample_lessons():
     conn = get_db()
@@ -241,11 +190,9 @@ def index():
     conn = get_db()
     cursor = conn.cursor()
     
-    user = cursor.execute('SELECT username, full_name, profile_image, language FROM users WHERE id = ?', (user_id,)).fetchone()
+    user = cursor.execute('SELECT username, full_name, profile_image FROM users WHERE id = ?', (user_id,)).fetchone()
     username = user['username'] if user else 'کاربر'
     profile_image = user['profile_image'] if user else 'default.png'
-    user_lang = user['language'] if user else 'fa'
-    translations = load_translations(user_lang)
     
     tasks = cursor.execute('SELECT * FROM tasks WHERE user_id = ? AND date = ?', (user_id, today)).fetchall()
     tasks_count = len(tasks)
@@ -267,14 +214,12 @@ def index():
             'done': log is not None
         })
     
-    sub_info = cursor.execute('SELECT subscription_type, subscription_end FROM users WHERE id = ?', (user_id,)).fetchone()
-    is_premium_user = is_premium(user_id)
     conn.close()
     
     return render_template('index.html',
                          username=username,
                          profile_image=profile_image,
-                         welcome_message=translations.get('welcome', 'سلام {name} عزیز! 🌸').format(name=username),
+                         welcome_message=f"سلام {username} عزیز! 🌸",
                          motivational_message=get_motivational_message(),
                          tasks=tasks,
                          tasks_count=tasks_count,
@@ -284,23 +229,7 @@ def index():
                          habits=habit_progress,
                          today=today,
                          total_habits=len(habits),
-                         done_habits=sum(1 for h in habit_progress if h['done']),
-                         is_premium=is_premium_user,
-                         subscription_type=sub_info['subscription_type'] if sub_info else 'free',
-                         translations=translations,
-                         current_lang=user_lang)
-
-@app.route('/set_language/<lang>')
-def set_language(lang):
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    if lang not in ['fa', 'en', 'ar']:
-        return "زبان نامعتبر"
-    conn = get_db()
-    conn.execute('UPDATE users SET language = ? WHERE id = ?', (lang, session['user_id']))
-    conn.commit()
-    conn.close()
-    return redirect(request.referrer or url_for('index'))
+                         done_habits=sum(1 for h in habit_progress if h['done']))
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -311,12 +240,10 @@ def signup():
         full_name = request.form.get('full_name', '')
         conn = get_db()
         try:
-            invite_code = generate_invite_code()
-            trial_end = date.today() + timedelta(days=5)
             conn.execute('''
-                INSERT INTO users (username, email, password, full_name, subscription_type, subscription_end, invite_code)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (username, email, password, full_name, 'trial', trial_end.isoformat(), invite_code))
+                INSERT INTO users (username, email, password, full_name)
+                VALUES (?, ?, ?, ?)
+            ''', (username, email, password, full_name))
             conn.commit()
             conn.close()
             return redirect(url_for('login'))
@@ -324,54 +251,6 @@ def signup():
             conn.close()
             return "این نام کاربری یا ایمیل قبلاً ثبت شده است"
     return render_template('signup.html')
-
-@app.route('/signup_with_invite/<invite_code>', methods=['GET', 'POST'])
-def signup_with_invite(invite_code):
-    if request.method == 'POST':
-        username = request.form['username']
-        email = request.form['email']
-        password = hash_password(request.form['password'])
-        full_name = request.form.get('full_name', '')
-        
-        conn = get_db()
-        cursor = conn.cursor()
-        
-        inviter = cursor.execute('SELECT id FROM users WHERE invite_code = ?', (invite_code,)).fetchone()
-        if not inviter:
-            conn.close()
-            return "کد معرف نامعتبر است"
-        
-        try:
-            new_invite_code = generate_invite_code()
-            trial_end = date.today() + timedelta(days=5)
-            
-            cursor.execute('''
-                INSERT INTO users (username, email, password, full_name, subscription_type, subscription_end, invite_code)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            ''', (username, email, password, full_name, 'trial', trial_end.isoformat(), new_invite_code))
-            
-            user_id = cursor.lastrowid
-            
-            cursor.execute('''
-                INSERT INTO invites (inviter_id, invited_email, status)
-                VALUES (?, ?, 'accepted')
-            ''', (inviter['id'], email))
-            
-            inviter_end = date.today() + timedelta(days=5)
-            cursor.execute('''
-                UPDATE users SET subscription_type = 'trial', subscription_end = ?
-                WHERE id = ?
-            ''', (inviter_end.isoformat(), inviter['id']))
-            
-            conn.commit()
-            conn.close()
-            return redirect(url_for('login'))
-            
-        except sqlite3.IntegrityError:
-            conn.close()
-            return "این نام کاربری یا ایمیل قبلاً ثبت شده است"
-    
-    return render_template('signup_invite.html', invite_code=invite_code)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -419,227 +298,51 @@ def profile():
     conn.close()
     return render_template('profile.html', user=user)
 
-@app.route('/subscription')
-def subscription():
+@app.route('/planner')
+def planner():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    conn = get_db()
-    user = conn.execute('SELECT subscription_type, subscription_end FROM users WHERE id = ?', (session['user_id'],)).fetchone()
-    conn.close()
-    return render_template('subscription.html', current=user['subscription_type'], end=user['subscription_end'])
-
-@app.route('/buy_subscription/<plan>')
-def buy_subscription(plan):
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    plans = {'weekly': 7, 'monthly': 30, 'yearly': 365}
-    if plan not in plans:
-        return "طرح نامعتبر"
-    days = plans[plan]
-    new_end = date.today() + timedelta(days=days)
-    conn = get_db()
-    conn.execute('UPDATE users SET subscription_type = ?, subscription_end = ? WHERE id = ?', (plan, new_end.isoformat(), session['user_id']))
-    conn.commit()
-    conn.close()
-    return redirect(url_for('subscription'))
-
-@app.route('/invite')
-def invite():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    conn = get_db()
-    user = conn.execute('SELECT invite_code FROM users WHERE id = ?', (session['user_id'],)).fetchone()
-    invites = conn.execute('SELECT * FROM invites WHERE inviter_id = ?', (session['user_id'],)).fetchall()
-    conn.close()
-    return render_template('invite.html', invite_code=user['invite_code'], invites=invites)
-
-@app.route('/study_techniques')
-def study_techniques():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    if not is_premium(session['user_id']):
-        return redirect(url_for('subscription'))
-    techniques = [
-        {'id': 1, 'name': 'پومودورو', 'desc': '۲۵ دقیقه کار، ۵ دقیقه استراحت'},
-        {'id': 2, 'name': 'تکنیک فاینمن', 'desc': 'یادگیری با آموزش به دیگران'},
-        {'id': 3, 'name': '۵۰/۱۰', 'desc': '۵۰ دقیقه مطالعه، ۱۰ دقیقه استراحت'},
-        {'id': 4, 'name': 'تکنیک ۲/۵/۷', 'desc': 'مرور در روزهای ۲، ۵ و ۷'},
-        {'id': 5, 'name': 'نقشه ذهنی', 'desc': 'ایجاد نقشه برای درک بهتر مطالب'},
-        {'id': 6, 'name': 'خواندن فعال', 'desc': 'یادداشت‌برداری و سوال پرسیدن هنگام مطالعه'},
-        {'id': 7, 'name': 'تکنیک ۱۰۰۰ ساعت', 'desc': '۱۰۰۰ ساعت تمرکز روی یک مهارت'},
-    ]
-    return render_template('study_techniques.html', techniques=techniques)
-
-@app.route('/technique/<int:tech_id>')
-def technique_detail(tech_id):
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    if not is_premium(session['user_id']):
-        return redirect(url_for('subscription'))
-    techniques = [
-        {'id': 1, 'name': 'پومودورو', 'desc': '۲۵ دقیقه کار، ۵ دقیقه استراحت', 
-         'full': 'تکنیک پومودورو یک روش مدیریت زمان است که توسط فرانچسکو سیریلو در دهه ۱۹۸۰ ابداع شد. در این روش، شما ۲۵ دقیقه به صورت متمرکز روی یک کار کار می‌کنید و سپس ۵ دقیقه استراحت می‌کنید. بعد از ۴ دوره، یک استراحت طولانی‌تر (۱۵-۳۰ دقیقه) انجام می‌دهید.',
-         'steps': ['یک کار را انتخاب کنید', 'تایمر را روی ۲۵ دقیقه تنظیم کنید', 'روی کار تمرکز کنید', '۵ دقیقه استراحت کنید', 'بعد از ۴ دوره، ۱۵-۳۰ دقیقه استراحت کنید'],
-         'tip': 'اگر در حین کار حواس‌تان پرت شد، آن را یادداشت کنید و بعداً پیگیری کنید.'},
-        {'id': 2, 'name': 'تکنیک فاینمن', 'desc': 'یادگیری با آموزش به دیگران', 
-         'full': 'ریچارد فاینمن، فیزیکدان برنده جایزه نوبل، معتقد بود بهترین راه برای یادگیری یک مطلب، آموزش آن به دیگران است. در این روش، شما مطلب را به زبانی ساده و روان توضیح می‌دهید تا مطمئن شوید خودتان کاملاً آن را درک کرده‌اید.',
-         'steps': ['مطلب را انتخاب کنید', 'آن را به یک کودک ۱۰ ساله توضیح دهید', 'جاهایی که گیر کردید را شناسایی کنید', 'دوباره مطالعه کنید و ساده‌تر توضیح دهید'],
-         'tip': 'اگر نمی‌توانید ساده توضیح دهید، یعنی خودتان کامل متوجه نشده‌اید.'},
-        {'id': 3, 'name': '۵۰/۱۰', 'desc': '۵۰ دقیقه مطالعه، ۱۰ دقیقه استراحت', 
-         'full': 'این روش مشابه پومودورو است اما با زمان‌های طولانی‌تر. ۵۰ دقیقه مطالعه متمرکز و ۱۰ دقیقه استراحت. مناسب برای افرادی که می‌توانند تمرکز طولانی‌تری داشته باشند.',
-         'steps': ['۵۰ دقیقه مطالعه متمرکز', '۱۰ دقیقه استراحت کامل', 'تکرار تا ۴ دوره'],
-         'tip': 'در زمان استراحت، از گوشی استفاده نکنید. بایستید و قدم بزنید.'},
-        {'id': 4, 'name': 'تکنیک ۲/۵/۷', 'desc': 'مرور در روزهای ۲، ۵ و ۷', 
-         'full': 'این تکنیک بر اساس منحنی فراموشی ابینگهاوس طراحی شده است. شما یک مطلب را در روزهای ۲، ۵ و ۷ بعد از یادگیری مرور می‌کنید تا در حافظه بلندمدت تثبیت شود.',
-         'steps': ['روز اول: یادگیری مطلب', 'روز دوم: مرور سریع', 'روز پنجم: مرور عمیق', 'روز هفتم: مرور نهایی'],
-         'tip': 'بهترین زمان مرور، صبح زود یا قبل از خواب است.'},
-        {'id': 5, 'name': 'نقشه ذهنی', 'desc': 'ایجاد نقشه برای درک بهتر مطالب', 
-         'full': 'نقشه ذهنی یک روش گرافیکی برای سازماندهی اطلاعات است. شما یک موضوع اصلی را در مرکز قرار می‌دهید و شاخه‌های فرعی را به آن متصل می‌کنید. این روش به درک بهتر روابط بین مفاهیم کمک می‌کند.',
-         'steps': ['موضوع اصلی را در مرکز بنویسید', 'شاخه‌های اصلی را اضافه کنید', 'برای هر شاخه، زیرشاخه‌ها را بنویسید', 'از رنگ‌ها و تصاویر استفاده کنید'],
-         'tip': 'از کاغذ بزرگ استفاده کنید و خلاقیت به خرج دهید.'},
-        {'id': 6, 'name': 'خواندن فعال', 'desc': 'یادداشت‌برداری و سوال پرسیدن هنگام مطالعه', 
-         'full': 'در این روش، شما به جای خواندن منفعل، با متن درگیر می‌شوید. سوال می‌پرسید، یادداشت برمی‌دارید، خلاصه‌نویسی می‌کنید و نکات کلیدی را مشخص می‌کنید. این روش باعث درک عمیق‌تر مطالب می‌شود.',
-         'steps': ['قبل از خواندن، سوالاتی بنویسید', 'هنگام خواندن، نکات کلیدی را یادداشت کنید', 'بعد از خواندن، خلاصه‌ای بنویسید', 'مطالب را به دیگران آموزش دهید'],
-         'tip': 'با مداد یا ماژیک هایلایت کار کنید تا تعامل بیشتری داشته باشید.'},
-        {'id': 7, 'name': 'تکنیک ۱۰۰۰ ساعت', 'desc': '۱۰۰۰ ساعت تمرکز روی یک مهارت', 
-         'full': 'این تکنیک بر اساس قانون ۱۰۰۰۰ ساعت مالکوم گلدول طراحی شده است. اما نسخه ساده‌تر آن، ۱۰۰۰ ساعت تمرکز روی یک مهارت خاص است. با ۱۰۰۰ ساعت تمرین هدفمند، می‌توانید در هر مهارتی به سطح بالایی از تسلط برسید.',
-         'steps': ['یک مهارت را انتخاب کنید', 'هر روز حداقل ۲ ساعت تمرین کنید', 'پیشرفت خود را ثبت کنید', 'هر هفته مرور و بهبود'],
-         'tip': 'کیفیت مهم‌تر از کمیت است. تمرین هدفمند انجام دهید.'}
-    ]
-    tech = next((t for t in techniques if t['id'] == tech_id), None)
-    if not tech:
-        return "تکنیک پیدا نشد"
-    return render_template('technique_detail.html', technique=tech)
-
-@app.route('/chatbot')
-def chatbot():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    if not is_premium(session['user_id']):
-        return redirect(url_for('subscription'))
-    return render_template('chatbot.html')
-
-@app.route('/journal', methods=['GET', 'POST'])
-def journal():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    if not is_premium(session['user_id']):
-        return redirect(url_for('subscription'))
-    
-    user_id = session['user_id']
     today = date.today().isoformat()
     conn = get_db()
-    cursor = conn.cursor()
-    
-    if request.method == 'POST':
-        title = request.form['title']
-        content = request.form['content']
-        mood = request.form.get('mood', '')
-        cursor.execute('''
-            INSERT INTO journal_entries (user_id, title, content, mood, date)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (user_id, title, content, mood, today))
-        conn.commit()
-        conn.close()
-        return redirect(url_for('journal'))
-    
-    entries = cursor.execute('''
-        SELECT * FROM journal_entries WHERE user_id = ? ORDER BY date DESC, created_at DESC
-    ''', (user_id,)).fetchall()
+    tasks = conn.execute('SELECT * FROM tasks WHERE user_id = ? AND date = ?', (session['user_id'], today)).fetchall()
     conn.close()
-    
-    return render_template('journal.html', entries=entries, today=today)
+    return render_template('planner.html', tasks=tasks, today=today)
 
-@app.route('/language/<lang>')
-def language_home(lang):
+@app.route('/finance')
+def finance():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    if not is_premium(session['user_id']):
-        return redirect(url_for('subscription'))
-    if lang not in ['english', 'arabic']:
-        return "زبان نامعتبر"
-    
     conn = get_db()
-    lessons = conn.execute('SELECT * FROM language_lessons WHERE language = ? ORDER BY level, id', (lang,)).fetchall()
+    transactions = conn.execute('SELECT * FROM transactions WHERE user_id = ? ORDER BY date DESC LIMIT 50', (session['user_id'],)).fetchall()
+    total_income = sum(t['amount'] for t in transactions if t['type'] == 'income')
+    total_expense = sum(t['amount'] for t in transactions if t['type'] == 'expense')
+    categories = {}
+    for t in transactions:
+        if t['type'] == 'expense':
+            categories[t['category']] = categories.get(t['category'], 0) + t['amount']
     conn.close()
-    
-    return render_template('language_home.html', lang=lang, lessons=lessons)
+    return render_template('finance.html',
+                         transactions=transactions,
+                         total_income=total_income,
+                         total_expense=total_expense,
+                         balance=total_income - total_expense,
+                         categories=categories,
+                         today=date.today().isoformat())
 
-@app.route('/lesson/<int:lesson_id>')
-def lesson_detail(lesson_id):
+@app.route('/habits')
+def habits_page():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    if not is_premium(session['user_id']):
-        return redirect(url_for('subscription'))
-    
     conn = get_db()
-    lesson = conn.execute('SELECT * FROM language_lessons WHERE id = ?', (lesson_id,)).fetchone()
+    habits = conn.execute('SELECT * FROM habits WHERE user_id = ?', (session['user_id'],)).fetchall()
+    today = date.today().isoformat()
+    for h in habits:
+        logs = conn.execute('SELECT * FROM habit_logs WHERE habit_id = ?', (h['id'],)).fetchall()
+        h['total_days'] = len(logs)
+        h['last_7'] = sum(1 for l in logs if l['date'] >= date.today().isoformat())
+        h['today_done'] = any(l['date'] == today for l in logs)
     conn.close()
-    
-    if not lesson:
-        return "درس پیدا نشد"
-    
-    return render_template('lesson_detail.html', lesson=lesson)
-
-@app.route('/meditation')
-def meditation():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    if not is_premium(session['user_id']):
-        return redirect(url_for('subscription'))
-    
-    conn = get_db()
-    user = conn.execute('SELECT meditation_music FROM users WHERE id = ?', (session['user_id'],)).fetchone()
-    conn.close()
-    
-    music_file = user['meditation_music'] if user and user['meditation_music'] else ''
-    
-    return render_template('meditation.html', music_file=music_file)
-
-@app.route('/upload_music', methods=['POST'])
-def upload_music():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    if not is_premium(session['user_id']):
-        return redirect(url_for('subscription'))
-    
-    if 'music_file' not in request.files:
-        return "هیچ فایلی انتخاب نشده است"
-    
-    file = request.files['music_file']
-    if file.filename == '':
-        return "هیچ فایلی انتخاب نشده است"
-    
-    if file and allowed_music_file(file.filename):
-        filename = secure_filename(f"{session['user_id']}_{file.filename}")
-        file.save(os.path.join(app.config['MUSIC_FOLDER'], filename))
-        
-        conn = get_db()
-        conn.execute('UPDATE users SET meditation_music = ? WHERE id = ?', (filename, session['user_id']))
-        conn.commit()
-        conn.close()
-        
-        return redirect(url_for('meditation'))
-    
-    return "فرمت فایل پشتیبانی نمی‌شود. فقط MP3, WAV, OGG"
-
-@app.route('/shopping_list')
-def shopping_list():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    return render_template('shopping_list.html')
-
-@app.route('/settings')
-def settings():
-    if 'user_id' not in session:
-        return redirect(url_for('login'))
-    
-    conn = get_db()
-    user = conn.execute('SELECT language FROM users WHERE id = ?', (session['user_id'],)).fetchone()
-    conn.close()
-    current_lang = user['language'] if user else 'fa'
-    
-    return render_template('settings.html', current_lang=current_lang)
+    return render_template('habits.html', habits=habits, today=today)
 
 @app.route('/add_task', methods=['POST'])
 def add_task():
@@ -734,51 +437,153 @@ def delete_transaction(trans_id):
     conn.close()
     return redirect(url_for('finance'))
 
-@app.route('/planner')
-def planner():
+@app.route('/meditation')
+def meditation():
     if 'user_id' not in session:
         return redirect(url_for('login'))
+    conn = get_db()
+    user = conn.execute('SELECT meditation_music FROM users WHERE id = ?', (session['user_id'],)).fetchone()
+    conn.close()
+    music_file = user['meditation_music'] if user and user['meditation_music'] else ''
+    return render_template('meditation.html', music_file=music_file)
+
+@app.route('/upload_music', methods=['POST'])
+def upload_music():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    if 'music_file' not in request.files:
+        return "هیچ فایلی انتخاب نشده است"
+    file = request.files['music_file']
+    if file.filename == '':
+        return "هیچ فایلی انتخاب نشده است"
+    if file and allowed_music_file(file.filename):
+        filename = secure_filename(f"{session['user_id']}_{file.filename}")
+        file.save(os.path.join(app.config['MUSIC_FOLDER'], filename))
+        conn = get_db()
+        conn.execute('UPDATE users SET meditation_music = ? WHERE id = ?', (filename, session['user_id']))
+        conn.commit()
+        conn.close()
+        return redirect(url_for('meditation'))
+    return "فرمت فایل پشتیبانی نمی‌شود. فقط MP3, WAV, OGG"
+
+@app.route('/journal', methods=['GET', 'POST'])
+def journal():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    user_id = session['user_id']
     today = date.today().isoformat()
     conn = get_db()
-    tasks = conn.execute('SELECT * FROM tasks WHERE user_id = ? AND date = ?', (session['user_id'], today)).fetchall()
+    cursor = conn.cursor()
+    if request.method == 'POST':
+        title = request.form['title']
+        content = request.form['content']
+        mood = request.form.get('mood', '')
+        cursor.execute('''
+            INSERT INTO journal_entries (user_id, title, content, mood, date)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (user_id, title, content, mood, today))
+        conn.commit()
+        conn.close()
+        return redirect(url_for('journal'))
+    entries = cursor.execute('''
+        SELECT * FROM journal_entries WHERE user_id = ? ORDER BY date DESC, created_at DESC
+    ''', (user_id,)).fetchall()
     conn.close()
-    return render_template('planner.html', tasks=tasks, today=today)
+    return render_template('journal.html', entries=entries, today=today)
 
-@app.route('/finance')
-def finance():
+@app.route('/study_techniques')
+def study_techniques():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    techniques = [
+        {'id': 1, 'name': 'پومودورو', 'desc': '۲۵ دقیقه کار، ۵ دقیقه استراحت'},
+        {'id': 2, 'name': 'تکنیک فاینمن', 'desc': 'یادگیری با آموزش به دیگران'},
+        {'id': 3, 'name': '۵۰/۱۰', 'desc': '۵۰ دقیقه مطالعه، ۱۰ دقیقه استراحت'},
+        {'id': 4, 'name': 'تکنیک ۲/۵/۷', 'desc': 'مرور در روزهای ۲، ۵ و ۷'},
+        {'id': 5, 'name': 'نقشه ذهنی', 'desc': 'ایجاد نقشه برای درک بهتر مطالب'},
+        {'id': 6, 'name': 'خواندن فعال', 'desc': 'یادداشت‌برداری و سوال پرسیدن هنگام مطالعه'},
+        {'id': 7, 'name': 'تکنیک ۱۰۰۰ ساعت', 'desc': '۱۰۰۰ ساعت تمرکز روی یک مهارت'},
+    ]
+    return render_template('study_techniques.html', techniques=techniques)
+
+@app.route('/technique/<int:tech_id>')
+def technique_detail(tech_id):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    techniques = [
+        {'id': 1, 'name': 'پومودورو', 'desc': '۲۵ دقیقه کار، ۵ دقیقه استراحت', 
+         'full': 'تکنیک پومودورو یک روش مدیریت زمان است که توسط فرانچسکو سیریلو در دهه ۱۹۸۰ ابداع شد. در این روش، شما ۲۵ دقیقه به صورت متمرکز روی یک کار کار می‌کنید و سپس ۵ دقیقه استراحت می‌کنید. بعد از ۴ دوره، یک استراحت طولانی‌تر (۱۵-۳۰ دقیقه) انجام می‌دهید.',
+         'steps': ['یک کار را انتخاب کنید', 'تایمر را روی ۲۵ دقیقه تنظیم کنید', 'روی کار تمرکز کنید', '۵ دقیقه استراحت کنید', 'بعد از ۴ دوره، ۱۵-۳۰ دقیقه استراحت کنید'],
+         'tip': 'اگر در حین کار حواس‌تان پرت شد، آن را یادداشت کنید و بعداً پیگیری کنید.'},
+        {'id': 2, 'name': 'تکنیک فاینمن', 'desc': 'یادگیری با آموزش به دیگران', 
+         'full': 'ریچارد فاینمن، فیزیکدان برنده جایزه نوبل، معتقد بود بهترین راه برای یادگیری یک مطلب، آموزش آن به دیگران است. در این روش، شما مطلب را به زبانی ساده و روان توضیح می‌دهید تا مطمئن شوید خودتان کاملاً آن را درک کرده‌اید.',
+         'steps': ['مطلب را انتخاب کنید', 'آن را به یک کودک ۱۰ ساله توضیح دهید', 'جاهایی که گیر کردید را شناسایی کنید', 'دوباره مطالعه کنید و ساده‌تر توضیح دهید'],
+         'tip': 'اگر نمی‌توانید ساده توضیح دهید، یعنی خودتان کامل متوجه نشده‌اید.'},
+        {'id': 3, 'name': '۵۰/۱۰', 'desc': '۵۰ دقیقه مطالعه، ۱۰ دقیقه استراحت', 
+         'full': 'این روش مشابه پومودورو است اما با زمان‌های طولانی‌تر. ۵۰ دقیقه مطالعه متمرکز و ۱۰ دقیقه استراحت. مناسب برای افرادی که می‌توانند تمرکز طولانی‌تری داشته باشند.',
+         'steps': ['۵۰ دقیقه مطالعه متمرکز', '۱۰ دقیقه استراحت کامل', 'تکرار تا ۴ دوره'],
+         'tip': 'در زمان استراحت، از گوشی استفاده نکنید. بایستید و قدم بزنید.'},
+        {'id': 4, 'name': 'تکنیک ۲/۵/۷', 'desc': 'مرور در روزهای ۲، ۵ و ۷', 
+         'full': 'این تکنیک بر اساس منحنی فراموشی ابینگهاوس طراحی شده است. شما یک مطلب را در روزهای ۲، ۵ و ۷ بعد از یادگیری مرور می‌کنید تا در حافظه بلندمدت تثبیت شود.',
+         'steps': ['روز اول: یادگیری مطلب', 'روز دوم: مرور سریع', 'روز پنجم: مرور عمیق', 'روز هفتم: مرور نهایی'],
+         'tip': 'بهترین زمان مرور، صبح زود یا قبل از خواب است.'},
+        {'id': 5, 'name': 'نقشه ذهنی', 'desc': 'ایجاد نقشه برای درک بهتر مطالب', 
+         'full': 'نقشه ذهنی یک روش گرافیکی برای سازماندهی اطلاعات است. شما یک موضوع اصلی را در مرکز قرار می‌دهید و شاخه‌های فرعی را به آن متصل می‌کنید. این روش به درک بهتر روابط بین مفاهیم کمک می‌کند.',
+         'steps': ['موضوع اصلی را در مرکز بنویسید', 'شاخه‌های اصلی را اضافه کنید', 'برای هر شاخه، زیرشاخه‌ها را بنویسید', 'از رنگ‌ها و تصاویر استفاده کنید'],
+         'tip': 'از کاغذ بزرگ استفاده کنید و خلاقیت به خرج دهید.'},
+        {'id': 6, 'name': 'خواندن فعال', 'desc': 'یادداشت‌برداری و سوال پرسیدن هنگام مطالعه', 
+         'full': 'در این روش، شما به جای خواندن منفعل، با متن درگیر می‌شوید. سوال می‌پرسید، یادداشت برمی‌دارید، خلاصه‌نویسی می‌کنید و نکات کلیدی را مشخص می‌کنید. این روش باعث درک عمیق‌تر مطالب می‌شود.',
+         'steps': ['قبل از خواندن، سوالاتی بنویسید', 'هنگام خواندن، نکات کلیدی را یادداشت کنید', 'بعد از خواندن، خلاصه‌ای بنویسید', 'مطالب را به دیگران آموزش دهید'],
+         'tip': 'با مداد یا ماژیک هایلایت کار کنید تا تعامل بیشتری داشته باشید.'},
+        {'id': 7, 'name': 'تکنیک ۱۰۰۰ ساعت', 'desc': '۱۰۰۰ ساعت تمرکز روی یک مهارت', 
+         'full': 'این تکنیک بر اساس قانون ۱۰۰۰۰ ساعت مالکوم گلدول طراحی شده است. اما نسخه ساده‌تر آن، ۱۰۰۰ ساعت تمرکز روی یک مهارت خاص است. با ۱۰۰۰ ساعت تمرین هدفمند، می‌توانید در هر مهارتی به سطح بالایی از تسلط برسید.',
+         'steps': ['یک مهارت را انتخاب کنید', 'هر روز حداقل ۲ ساعت تمرین کنید', 'پیشرفت خود را ثبت کنید', 'هر هفته مرور و بهبود'],
+         'tip': 'کیفیت مهم‌تر از کمیت است. تمرین هدفمند انجام دهید.'}
+    ]
+    tech = next((t for t in techniques if t['id'] == tech_id), None)
+    if not tech:
+        return "تکنیک پیدا نشد"
+    return render_template('technique_detail.html', technique=tech)
+
+@app.route('/chatbot')
+def chatbot():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    return render_template('chatbot.html')
+
+@app.route('/language/<lang>')
+def language_home(lang):
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    if lang not in ['english', 'arabic']:
+        return "زبان نامعتبر"
+    conn = get_db()
+    lessons = conn.execute('SELECT * FROM language_lessons WHERE language = ? ORDER BY level, id', (lang,)).fetchall()
+    conn.close()
+    return render_template('language_home.html', lang=lang, lessons=lessons)
+
+@app.route('/lesson/<int:lesson_id>')
+def lesson_detail(lesson_id):
     if 'user_id' not in session:
         return redirect(url_for('login'))
     conn = get_db()
-    transactions = conn.execute('SELECT * FROM transactions WHERE user_id = ? ORDER BY date DESC LIMIT 50', (session['user_id'],)).fetchall()
-    total_income = sum(t['amount'] for t in transactions if t['type'] == 'income')
-    total_expense = sum(t['amount'] for t in transactions if t['type'] == 'expense')
-    categories = {}
-    for t in transactions:
-        if t['type'] == 'expense':
-            categories[t['category']] = categories.get(t['category'], 0) + t['amount']
+    lesson = conn.execute('SELECT * FROM language_lessons WHERE id = ?', (lesson_id,)).fetchone()
     conn.close()
-    return render_template('finance.html',
-                         transactions=transactions,
-                         total_income=total_income,
-                         total_expense=total_expense,
-                         balance=total_income - total_expense,
-                         categories=categories,
-                         today=date.today().isoformat())
+    if not lesson:
+        return "درس پیدا نشد"
+    return render_template('lesson_detail.html', lesson=lesson)
 
-@app.route('/habits')
-def habits_page():
+@app.route('/settings')
+def settings():
     if 'user_id' not in session:
         return redirect(url_for('login'))
-    conn = get_db()
-    habits = conn.execute('SELECT * FROM habits WHERE user_id = ?', (session['user_id'],)).fetchall()
-    today = date.today().isoformat()
-    for h in habits:
-        logs = conn.execute('SELECT * FROM habit_logs WHERE habit_id = ?', (h['id'],)).fetchall()
-        h['total_days'] = len(logs)
-        h['last_7'] = sum(1 for l in logs if l['date'] >= date.today().isoformat())
-        h['today_done'] = any(l['date'] == today for l in logs)
-    conn.close()
-    return render_template('habits.html', habits=habits, today=today)
+    return render_template('settings.html')
+
+@app.route('/shopping_list')
+def shopping_list():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    return render_template('shopping_list.html')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
